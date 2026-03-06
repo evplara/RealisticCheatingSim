@@ -1,0 +1,1036 @@
+#include "Game.h"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <limits>
+#include <string>
+
+#include "Config.h"
+#include "RenderUI.h"
+#include "StealthSystems.h"
+
+namespace
+{
+constexpr GridPos kMoveDirs[4] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
+constexpr float kDegToRad = 3.14159265f / 180.0f;
+
+float ClampF(float value, float minValue, float maxValue)
+{
+    if (value < minValue)
+    {
+        return minValue;
+    }
+    if (value > maxValue)
+    {
+        return maxValue;
+    }
+    return value;
+}
+
+Vector2 LerpPos(GridPos from, GridPos to, float t)
+{
+    const float clamped = ClampF(t, 0.0f, 1.0f);
+    const float fx = static_cast<float>(from.x) + static_cast<float>(to.x - from.x) * clamped;
+    const float fy = static_cast<float>(from.y) + static_cast<float>(to.y - from.y) * clamped;
+    return Vector2{config::kGridOriginX + fx * config::kTileSize + config::kTileSize * 0.5f,
+                   config::kGridOriginY + fy * config::kTileSize + config::kTileSize * 0.5f};
+}
+
+Rectangle TileRect(GridPos pos)
+{
+    return Rectangle{static_cast<float>(config::kGridOriginX + pos.x * config::kTileSize),
+                     static_cast<float>(config::kGridOriginY + pos.y * config::kTileSize),
+                     static_cast<float>(config::kTileSize),
+                     static_cast<float>(config::kTileSize)};
+}
+
+int TraitHintIndex(const WeekData& week, GridPos playerPos)
+{
+    int best = -1;
+    int bestDist = std::numeric_limits<int>::max();
+    for (int i = 0; i < static_cast<int>(week.students.size()); ++i)
+    {
+        const int dist = stealth::ManhattanDistance(playerPos, week.students[i].pos);
+        if (dist < bestDist)
+        {
+            best = i;
+            bestDist = dist;
+        }
+    }
+    return best;
+}
+} // namespace
+
+void Game::Init()
+{
+    SetRandomSeed(static_cast<unsigned int>(GetTime()));
+
+    InitAudioDevice();
+    audioReady_ = IsAudioDeviceReady();
+    if (audioReady_)
+    {
+        if (FileExists("resources/audio/peek.wav"))
+        {
+            sfxPeek_.sound = LoadSound("resources/audio/peek.wav");
+            sfxPeek_.loaded = true;
+        }
+        if (FileExists("resources/audio/ability.wav"))
+        {
+            sfxAbility_.sound = LoadSound("resources/audio/ability.wav");
+            sfxAbility_.loaded = true;
+        }
+        if (FileExists("resources/audio/caught.wav"))
+        {
+            sfxCaught_.sound = LoadSound("resources/audio/caught.wav");
+            sfxCaught_.loaded = true;
+        }
+    }
+
+    state_ = GameState::MainMenu;
+}
+
+void Game::Update(float dt)
+{
+    if (IsKeyPressed(KEY_F3))
+    {
+        showDebug_ = !showDebug_;
+    }
+
+    switch (state_)
+    {
+        case GameState::MainMenu:
+            UpdateMenuInput();
+            break;
+        case GameState::WeekIntro:
+            weekMessageTimer_ += dt;
+            UpdateWeekIntroInput();
+            break;
+        case GameState::InWeek:
+            UpdateInWeek(dt);
+            break;
+        case GameState::WeekClear:
+            UpdateWeekClearInput();
+            break;
+        case GameState::RunSuccess:
+        case GameState::RunFail:
+            UpdateEndScreenInput();
+            break;
+        default:
+            break;
+    }
+}
+
+void Game::Draw() const
+{
+    ClearBackground(Color{16, 22, 30, 255});
+
+    if (state_ == GameState::MainMenu)
+    {
+        renderui::DrawCenteredMessage(
+            "School 7DRL",
+            "ENTER: Start Run    ESC: Quit    TAB: Ability Mode    F3: Debug Overlay",
+            Color{112, 226, 167, 255});
+        return;
+    }
+
+    const Rectangle boardBounds{
+        static_cast<float>(config::kGridOriginX - 8),
+        static_cast<float>(config::kGridOriginY - 8),
+        static_cast<float>(config::kGridPixelW + 16),
+        static_cast<float>(config::kGridPixelH + 16),
+    };
+    DrawRectangleRounded(boardBounds, 0.03f, 6, Color{30, 39, 49, 255});
+
+    for (int y = 0; y < week_.h; ++y)
+    {
+        for (int x = 0; x < week_.w; ++x)
+        {
+            const GridPos p{x, y};
+            const TileType tile = week_.tiles[stealth::ToIndex(week_, p)];
+            Color c = Color{54, 66, 78, 255};
+            switch (tile)
+            {
+                case TileType::Floor: c = Color{54, 66, 78, 255}; break;
+                case TileType::Desk: c = Color{120, 95, 71, 255}; break;
+                case TileType::TeacherDesk: c = Color{96, 74, 56, 255}; break;
+                case TileType::Submit: c = Color{63, 110, 164, 255}; break;
+                case TileType::Wall: c = Color{35, 43, 52, 255}; break;
+                default: break;
+            }
+            DrawRectangleRec(TileRect(p), c);
+            DrawRectangleLinesEx(TileRect(p), 1.0f, Color{26, 34, 41, 200});
+        }
+    }
+
+    // Teacher FOV cone.
+    Vector2 teacherPos = LerpPos(teacherMoveFrom_, teacherMoveTo_, teacherMoveT_);
+    const float teacherFov = EffectiveTeacherFovDeg();
+    const float teacherRangePx = static_cast<float>(tuning_.fovRangeTiles * config::kTileSize);
+    DrawCircleSector(teacherPos, teacherRangePx, teacher_.facingDeg - (teacherFov * 0.5f),
+                     teacher_.facingDeg + (teacherFov * 0.5f), 28, Color{255, 238, 143, 40});
+
+    for (const Student& s : week_.students)
+    {
+        const Vector2 sc = Vector2{
+            static_cast<float>(config::kGridOriginX + s.pos.x * config::kTileSize + config::kTileSize / 2),
+            static_cast<float>(config::kGridOriginY + s.pos.y * config::kTileSize + config::kTileSize / 2)};
+        DrawCircleV(sc, 11.0f, renderui::TraitColor(s.trait, s.consumed));
+    }
+
+    Vector2 playerPos = LerpPos(playerMoveFrom_, playerMoveTo_, playerMoveT_);
+    DrawCircleV(playerPos, 12.0f, Color{122, 221, 244, 255});
+    if (player_.mirrorActive)
+    {
+        DrawCircleLines(static_cast<int>(playerPos.x), static_cast<int>(playerPos.y), 16.0f, Color{185, 235, 255, 255});
+    }
+
+    DrawCircleV(teacherPos, 13.0f, Color{249, 92, 106, 255});
+    const float theta = teacher_.facingDeg * kDegToRad;
+    const Vector2 dir{std::cos(theta) * 16.0f, std::sin(theta) * 16.0f};
+    DrawLineEx(teacherPos, Vector2{teacherPos.x + dir.x, teacherPos.y + dir.y}, 3.0f, Color{250, 220, 220, 255});
+
+    DrawText("SUBMIT", config::kGridOriginX + week_.submitPos.x * config::kTileSize + 4,
+             config::kGridOriginY + week_.submitPos.y * config::kTileSize + 10, 12, Color{219, 236, 255, 255});
+
+    const Rectangle panel{static_cast<float>(config::kHudX), static_cast<float>(config::kHudY),
+                          static_cast<float>(config::kHudWidth), static_cast<float>(config::kScreenHeight - 2 * config::kHudY)};
+    renderui::DrawPanelBackground(panel);
+
+    int y = config::kHudY + 16;
+    DrawText(TextFormat("Week %d / 3", weekIndex_), config::kHudX + 14, y, 24, RAYWHITE);
+    y += 30;
+    DrawText(TextFormat("State: %s", renderui::TeacherStateName(teacher_.state)), config::kHudX + 14, y, 18,
+             Color{191, 212, 227, 255});
+    y += 26;
+    DrawText(TextFormat("Seed: %u", week_.seed), config::kHudX + 14, y, 16, Color{156, 178, 194, 255});
+    y += 28;
+
+    renderui::DrawMeter(Rectangle{static_cast<float>(config::kHudX + 14), static_cast<float>(y),
+                                  static_cast<float>(config::kHudWidth - 28), 20.0f},
+                        quizProgress_, static_cast<float>(config::kProgressTarget), "Quiz Progress",
+                        Color{126, 207, 147, 255});
+    y += 54;
+
+    renderui::DrawMeter(Rectangle{static_cast<float>(config::kHudX + 14), static_cast<float>(y),
+                                  static_cast<float>(config::kHudWidth - 28), 20.0f},
+                        suspicion_, 100.0f, "Suspicion", Color{236, 119, 101, 255});
+    y += 54;
+
+    DrawText("Abilities (Tab to pause)", config::kHudX + 14, y, 18, RAYWHITE);
+    y += 26;
+    renderui::DrawAbilityLine(config::kHudX + 14, y, 1, "Whisper", IsAbilityUnlocked(AbilityType::Whisper),
+                              abilityCooldowns_[AbilityIndex(AbilityType::Whisper)],
+                              abilityMode_ && selectedAbility_ == AbilityType::Whisper);
+    y += 28;
+    renderui::DrawAbilityLine(config::kHudX + 14, y, 2, "Fake Cough", IsAbilityUnlocked(AbilityType::FakeCough),
+                              abilityCooldowns_[AbilityIndex(AbilityType::FakeCough)],
+                              abilityMode_ && selectedAbility_ == AbilityType::FakeCough);
+    y += 28;
+    renderui::DrawAbilityLine(config::kHudX + 14, y, 3, "Mirror", IsAbilityUnlocked(AbilityType::Mirror),
+                              abilityCooldowns_[AbilityIndex(AbilityType::Mirror)],
+                              abilityMode_ && selectedAbility_ == AbilityType::Mirror);
+    y += 34;
+
+    if (player_.mirrorActive)
+    {
+        DrawText(TextFormat("Mirror Active: %.1fs", player_.mirrorTimer), config::kHudX + 14, y, 18,
+                 Color{180, 225, 253, 255});
+    }
+    else
+    {
+        DrawText("Mirror Active: No", config::kHudX + 14, y, 18, Color{150, 170, 186, 255});
+    }
+    y += 30;
+
+    const int hintIdx = TraitHintIndex(week_, player_.pos);
+    if (hintIdx >= 0)
+    {
+        const Student& s = week_.students[hintIdx];
+        DrawText(TextFormat("Nearest: %s", renderui::TraitName(s.trait)), config::kHudX + 14, y, 18,
+                 renderui::TraitColor(s.trait, s.consumed));
+    }
+    y += 30;
+    DrawText("WASD move, Hold SPACE peek/submit", config::kHudX + 14, y, 16, Color{165, 189, 207, 255});
+    y += 22;
+    DrawText("Cheating in FOV for 0.2s = run over", config::kHudX + 14, y, 16, Color{220, 158, 130, 255});
+
+    if (abilityMode_ && state_ == GameState::InWeek)
+    {
+        DrawRectangle(0, 0, config::kScreenWidth, config::kScreenHeight, Color{8, 12, 18, 136});
+        DrawRectangleRounded(Rectangle{100, 120, 760, 160}, 0.08f, 8, Color{23, 34, 47, 245});
+        DrawText("Ability Mode", 120, 150, 34, Color{180, 235, 199, 255});
+        DrawText("1/2/3 select, ENTER cast, ESC/TAB cancel", 120, 194, 22, RAYWHITE);
+    }
+
+    if (showDebug_)
+    {
+        DrawRectangle(8, 8, 340, 108, Color{7, 10, 15, 215});
+        DrawText(TextFormat("Debug: seesPlayer=%s", teacherSeesPlayer_ ? "true" : "false"), 14, 16, 16, RAYWHITE);
+        DrawText(TextFormat("Cheating=%s seenTimer=%.2f", IsCheatingActionActive() ? "true" : "false", cheatingSeenTimer_),
+                 14, 36, 16, RAYWHITE);
+        DrawText(TextFormat("SuspRate=%.2f FOV=%.1f moveSec=%.2f", suspicionRate_, EffectiveTeacherFovDeg(),
+                            EffectiveTeacherMoveSec()),
+                 14, 56, 16, RAYWHITE);
+        DrawText(TextFormat("Pos P(%d,%d) T(%d,%d)", player_.pos.x, player_.pos.y, teacher_.pos.x, teacher_.pos.y), 14, 76,
+                 16, RAYWHITE);
+
+        if (teacherSeesPlayer_)
+        {
+            DrawLineEx(teacherPos, playerPos, 2.0f, Color{246, 120, 102, 255});
+        }
+    }
+
+    if (state_ == GameState::WeekIntro)
+    {
+        renderui::DrawCenteredMessage(TextFormat("Week %d Quiz", weekIndex_), "Reach 100 progress and submit.", WHITE);
+    }
+    else if (state_ == GameState::WeekClear)
+    {
+        renderui::DrawCenteredMessage(TextFormat("Week %d Cleared", weekIndex_), "Press ENTER for next week.", WHITE);
+    }
+    else if (state_ == GameState::RunFail)
+    {
+        renderui::DrawCenteredMessage("Caught. Run Over",
+                                      TextFormat("%s  |  Score: %d  |  ENTER: Main Menu", failReason_.c_str(), ComputeScore()),
+                                      Color{252, 145, 120, 255});
+    }
+    else if (state_ == GameState::RunSuccess)
+    {
+        renderui::DrawCenteredMessage("Run Complete",
+                                      TextFormat("Score: %d  |  ENTER: Main Menu", ComputeScore()),
+                                      Color{141, 255, 172, 255});
+    }
+}
+
+bool Game::ShouldExit() const
+{
+    return shouldExit_;
+}
+
+void Game::StartNewRun()
+{
+    generator_ = WeekGenerator{};
+    runSeed_ = static_cast<uint32_t>(GetRandomValue(1000, 999999999));
+    weeksCleared_ = 0;
+    totalProgress_ = 0.0f;
+    peakSuspicion_ = 0.0f;
+    timesSeenCheating_ = 0;
+    failReason_.clear();
+    abilityCooldowns_ = {0.0f, 0.0f, 0.0f};
+
+    StartWeek(1);
+}
+
+void Game::StartWeek(int weekIndex)
+{
+    weekIndex_ = weekIndex;
+    tuning_ = config::GetWeekTuning(weekIndex_);
+    week_ = generator_.Generate(weekIndex_, runSeed_ + static_cast<uint32_t>(weekIndex_ * 9973));
+
+    player_.pos = week_.playerSpawn;
+    player_.mirrorActive = false;
+    player_.mirrorTimer = 0.0f;
+
+    if (week_.patrol.empty())
+    {
+        week_.patrol = {GridPos{3, 3}, GridPos{12, 3}, GridPos{12, 12}, GridPos{3, 12}, GridPos{3, 3}};
+    }
+
+    teacher_.pos = week_.patrol.front();
+    teacher_.waypointIndex = (week_.patrol.size() > 1) ? 1 : 0;
+    teacher_.state = TeacherState::Patrol;
+    teacher_.stateTimer = 0.0f;
+    teacher_.facingDeg = 90.0f;
+
+    investigateTarget_ = teacher_.pos;
+    investigateRemainingSec_ = 0.0f;
+
+    suspicion_ = 0.0f;
+    suspicionRate_ = 0.0f;
+    cheatingSeenTimer_ = 0.0f;
+    wasSeeingCheatingLastFrame_ = false;
+    lastSuspiciousPos_ = player_.pos;
+
+    quizProgress_ = 0.0f;
+    teacherSeesPlayer_ = false;
+    abilityMode_ = false;
+    selectedAbility_ = AbilityType::Whisper;
+
+    playerMoving_ = false;
+    playerMoveFrom_ = player_.pos;
+    playerMoveTo_ = player_.pos;
+    playerMoveT_ = 1.0f;
+
+    teacherMoveFrom_ = teacher_.pos;
+    teacherMoveTo_ = teacher_.pos;
+    teacherMoveT_ = 1.0f;
+    teacherStepTimer_ = 0.0f;
+
+    peekHoldSec_ = 0.0f;
+    submitHoldSec_ = 0.0f;
+    spaceActionTriggered_ = false;
+    peeking_ = false;
+    cheatingActionTimer_ = 0.0f;
+
+    weekMessageTimer_ = 0.0f;
+    state_ = GameState::WeekIntro;
+}
+
+void Game::AdvanceWeekOrEndRun()
+{
+    weeksCleared_++;
+    if (weekIndex_ >= 3)
+    {
+        state_ = GameState::RunSuccess;
+        return;
+    }
+    state_ = GameState::WeekClear;
+}
+
+void Game::EnterFail(const std::string& reason)
+{
+    failReason_ = reason;
+    state_ = GameState::RunFail;
+    PlayCaughtSfx();
+}
+
+void Game::UpdateMenuInput()
+{
+    if (IsKeyPressed(KEY_ENTER))
+    {
+        StartNewRun();
+    }
+    if (IsKeyPressed(KEY_ESCAPE))
+    {
+        shouldExit_ = true;
+    }
+}
+
+void Game::UpdateWeekIntroInput()
+{
+    if (IsKeyPressed(KEY_ENTER) || weekMessageTimer_ >= 1.0f)
+    {
+        state_ = GameState::InWeek;
+    }
+}
+
+void Game::UpdateWeekClearInput()
+{
+    if (IsKeyPressed(KEY_ENTER))
+    {
+        StartWeek(weekIndex_ + 1);
+    }
+}
+
+void Game::UpdateEndScreenInput()
+{
+    if (IsKeyPressed(KEY_ENTER))
+    {
+        state_ = GameState::MainMenu;
+    }
+}
+
+void Game::UpdateInWeek(float dt)
+{
+    if (IsKeyPressed(KEY_TAB))
+    {
+        abilityMode_ = !abilityMode_;
+    }
+
+    if (abilityMode_)
+    {
+        HandleAbilityModeInput();
+        peeking_ = false;
+        cheatingActionTimer_ = std::max(0.0f, cheatingActionTimer_ - dt);
+        return;
+    }
+
+    HandleMovementInput();
+    UpdateMovement(dt);
+    UpdateTeacher(dt);
+    UpdateInteractions(dt);
+    UpdateSuspicion(dt);
+    UpdateMirror(dt);
+    UpdateAbilityCooldowns(dt);
+}
+
+void Game::UpdateMovement(float dt)
+{
+    if (playerMoving_)
+    {
+        playerMoveT_ += dt / config::kPlayerMoveSec;
+        if (playerMoveT_ >= 1.0f)
+        {
+            playerMoveT_ = 1.0f;
+            playerMoving_ = false;
+        }
+    }
+
+    if (teacherMoveT_ < 1.0f)
+    {
+        teacherMoveT_ += dt / std::max(0.1f, EffectiveTeacherMoveSec());
+        if (teacherMoveT_ > 1.0f)
+        {
+            teacherMoveT_ = 1.0f;
+        }
+    }
+}
+
+void Game::UpdateTeacher(float dt)
+{
+    teacher_.stateTimer += dt;
+    teacherStepTimer_ += dt;
+
+    const float moveSec = EffectiveTeacherMoveSec();
+    const float scanInterval = EffectiveTeacherScanInterval();
+
+    switch (teacher_.state)
+    {
+        case TeacherState::Patrol:
+        {
+            if (teacher_.stateTimer >= scanInterval)
+            {
+                teacher_.state = TeacherState::Scan;
+                teacher_.stateTimer = 0.0f;
+                break;
+            }
+
+            GridPos target = week_.patrol[teacher_.waypointIndex];
+            if (teacher_.pos == target)
+            {
+                teacher_.waypointIndex = (teacher_.waypointIndex + 1) % static_cast<int>(week_.patrol.size());
+                target = week_.patrol[teacher_.waypointIndex];
+            }
+
+            if (teacherStepTimer_ >= moveSec)
+            {
+                teacherStepTimer_ = 0.0f;
+                StepTeacherToward(target, moveSec);
+            }
+        }
+        break;
+
+        case TeacherState::Scan:
+        {
+            teacher_.facingDeg += 110.0f * dt;
+            if (teacher_.facingDeg >= 360.0f)
+            {
+                teacher_.facingDeg -= 360.0f;
+            }
+            if (teacher_.stateTimer >= 1.0f)
+            {
+                teacher_.state = TeacherState::Patrol;
+                teacher_.stateTimer = 0.0f;
+            }
+        }
+        break;
+
+        case TeacherState::Investigate:
+        {
+            investigateRemainingSec_ = std::max(0.0f, investigateRemainingSec_ - dt);
+            if (teacherStepTimer_ >= moveSec)
+            {
+                teacherStepTimer_ = 0.0f;
+                StepTeacherToward(investigateTarget_, moveSec);
+            }
+            if (teacher_.pos == investigateTarget_ || investigateRemainingSec_ <= 0.0f)
+            {
+                teacher_.state = TeacherState::Scan;
+                teacher_.stateTimer = 0.0f;
+            }
+        }
+        break;
+
+        case TeacherState::Alert:
+        {
+            investigateRemainingSec_ = std::max(0.0f, investigateRemainingSec_ - dt);
+            if (teacherStepTimer_ >= moveSec * 0.9f)
+            {
+                teacherStepTimer_ = 0.0f;
+                StepTeacherToward(investigateTarget_, moveSec * 0.9f);
+            }
+            if (investigateRemainingSec_ <= 0.0f)
+            {
+                teacher_.state = TeacherState::Patrol;
+                teacher_.stateTimer = 0.0f;
+            }
+        }
+        break;
+
+        default:
+            break;
+    }
+}
+
+void Game::UpdateSuspicion(float dt)
+{
+    const bool cheatingNow = IsCheatingActionActive();
+    const bool seesPlayerNow = TeacherSeesPlayerNow();
+    teacherSeesPlayer_ = seesPlayerNow;
+
+    suspicionRate_ = 0.0f;
+    if (seesPlayerNow && cheatingNow)
+    {
+        suspicionRate_ = 18.0f * tuning_.suspicionGainMult;
+        AddSuspicion(suspicionRate_ * dt);
+    }
+    else if (seesPlayerNow && !cheatingNow)
+    {
+        suspicionRate_ = config::kSuspicionSeenPerSec * tuning_.suspicionGainMult;
+        AddSuspicion(suspicionRate_ * dt);
+    }
+    else if (!seesPlayerNow && !cheatingNow)
+    {
+        suspicionRate_ = -config::kSuspicionDecayPerSec;
+        AddSuspicion(suspicionRate_ * dt);
+    }
+
+    if (seesPlayerNow && cheatingNow)
+    {
+        cheatingSeenTimer_ += dt;
+        if (!wasSeeingCheatingLastFrame_)
+        {
+            timesSeenCheating_++;
+        }
+        if (cheatingSeenTimer_ >= config::kCheatingCaughtSec)
+        {
+            EnterFail("Teacher spotted a cheat action.");
+        }
+    }
+    else
+    {
+        cheatingSeenTimer_ = 0.0f;
+    }
+
+    wasSeeingCheatingLastFrame_ = seesPlayerNow && cheatingNow;
+    cheatingActionTimer_ = std::max(0.0f, cheatingActionTimer_ - dt);
+}
+
+void Game::UpdateInteractions(float dt)
+{
+    peeking_ = false;
+
+    if (!IsKeyDown(KEY_SPACE))
+    {
+        peekHoldSec_ = 0.0f;
+        submitHoldSec_ = 0.0f;
+        spaceActionTriggered_ = false;
+        return;
+    }
+
+    if (playerMoving_)
+    {
+        return;
+    }
+
+    if (player_.pos == week_.submitPos && quizProgress_ >= config::kProgressTarget)
+    {
+        submitHoldSec_ += dt;
+        if (submitHoldSec_ >= config::kSubmitHoldSec && !spaceActionTriggered_)
+        {
+            spaceActionTriggered_ = true;
+            AdvanceWeekOrEndRun();
+        }
+        return;
+    }
+
+    const int target = FindPeekTarget(false);
+    if (target < 0)
+    {
+        peekHoldSec_ = 0.0f;
+        return;
+    }
+
+    peeking_ = true;
+    AddSuspicion(config::kSuspicionPeekPerSec * dt);
+    cheatingActionTimer_ = std::max(cheatingActionTimer_, 0.05f);
+    peekHoldSec_ += dt;
+
+    if (peekHoldSec_ >= config::kPeekHoldSec && !spaceActionTriggered_)
+    {
+        spaceActionTriggered_ = true;
+        Student& student = week_.students[target];
+        if (!student.consumed)
+        {
+            student.consumed = true;
+            AddProgress(config::PeekGain(student.trait));
+            AddSuspicion(4.0f);
+            PlayPeekSfx();
+        }
+    }
+}
+
+void Game::UpdateAbilityCooldowns(float dt)
+{
+    for (float& cooldown : abilityCooldowns_)
+    {
+        cooldown = std::max(0.0f, cooldown - dt);
+    }
+}
+
+void Game::UpdateMirror(float dt)
+{
+    if (!player_.mirrorActive)
+    {
+        return;
+    }
+    player_.mirrorTimer = std::max(0.0f, player_.mirrorTimer - dt);
+    if (player_.mirrorTimer <= 0.0f)
+    {
+        player_.mirrorActive = false;
+    }
+}
+
+void Game::HandleMovementInput()
+{
+    if (playerMoving_)
+    {
+        return;
+    }
+
+    if (IsKeyPressed(KEY_W))
+    {
+        TryMovePlayer(0, -1);
+    }
+    else if (IsKeyPressed(KEY_S))
+    {
+        TryMovePlayer(0, 1);
+    }
+    else if (IsKeyPressed(KEY_A))
+    {
+        TryMovePlayer(-1, 0);
+    }
+    else if (IsKeyPressed(KEY_D))
+    {
+        TryMovePlayer(1, 0);
+    }
+}
+
+void Game::HandleAbilityModeInput()
+{
+    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_TAB))
+    {
+        abilityMode_ = false;
+        return;
+    }
+
+    if (IsKeyPressed(KEY_ONE) && IsAbilityUnlocked(AbilityType::Whisper))
+    {
+        selectedAbility_ = AbilityType::Whisper;
+    }
+    else if (IsKeyPressed(KEY_TWO) && IsAbilityUnlocked(AbilityType::FakeCough))
+    {
+        selectedAbility_ = AbilityType::FakeCough;
+    }
+    else if (IsKeyPressed(KEY_THREE) && IsAbilityUnlocked(AbilityType::Mirror))
+    {
+        selectedAbility_ = AbilityType::Mirror;
+    }
+
+    if (IsKeyPressed(KEY_ENTER))
+    {
+        CastSelectedAbility();
+    }
+}
+
+void Game::TryMovePlayer(int dx, int dy)
+{
+    const GridPos next{player_.pos.x + dx, player_.pos.y + dy};
+    if (!stealth::InBounds(week_, next))
+    {
+        return;
+    }
+    if (!stealth::IsWalkable(stealth::GetTile(week_, next)))
+    {
+        return;
+    }
+
+    playerMoveFrom_ = player_.pos;
+    playerMoveTo_ = next;
+    playerMoveT_ = 0.0f;
+    playerMoving_ = true;
+    player_.pos = next;
+}
+
+void Game::CastSelectedAbility()
+{
+    if (!IsAbilityUnlocked(selectedAbility_))
+    {
+        return;
+    }
+
+    const int idx = AbilityIndex(selectedAbility_);
+    if (abilityCooldowns_[idx] > 0.0f)
+    {
+        return;
+    }
+
+    bool success = false;
+    switch (selectedAbility_)
+    {
+        case AbilityType::Whisper:
+            success = TriggerWhisper();
+            break;
+        case AbilityType::FakeCough:
+            if (!TeacherSeesPlayerNow())
+            {
+                success = TriggerFakeCough();
+            }
+            break;
+        case AbilityType::Mirror:
+            success = TriggerMirror();
+            break;
+        default:
+            break;
+    }
+
+    if (!success)
+    {
+        return;
+    }
+
+    abilityCooldowns_[idx] = config::AbilityCooldown(selectedAbility_);
+    cheatingActionTimer_ = std::max(cheatingActionTimer_, 0.25f);
+    abilityMode_ = false;
+    PlayAbilitySfx();
+}
+
+bool Game::TriggerWhisper()
+{
+    const int target = FindPeekTarget(true);
+    if (target < 0)
+    {
+        return false;
+    }
+
+    Student& student = week_.students[target];
+    if (student.consumed)
+    {
+        return false;
+    }
+
+    student.consumed = true;
+    AddProgress(config::WhisperGain(student.trait));
+    AddSuspicion(config::WhisperSuspicion(student.trait));
+    return true;
+}
+
+bool Game::TriggerFakeCough()
+{
+    investigateTarget_ = player_.pos;
+    investigateRemainingSec_ = config::kInvestigateDurationFakeCough;
+    teacher_.state = TeacherState::Investigate;
+    teacher_.stateTimer = 0.0f;
+    AddSuspicion(15.0f);
+    return true;
+}
+
+bool Game::TriggerMirror()
+{
+    player_.mirrorActive = true;
+    player_.mirrorTimer = config::kMirrorDurationSec;
+    AddSuspicion(6.0f);
+    return true;
+}
+
+bool Game::IsAbilityUnlocked(AbilityType ability) const
+{
+    switch (ability)
+    {
+        case AbilityType::Whisper: return weekIndex_ >= 1;
+        case AbilityType::FakeCough: return weekIndex_ >= 2;
+        case AbilityType::Mirror: return weekIndex_ >= 3;
+        default: return false;
+    }
+}
+
+int Game::AbilityIndex(AbilityType ability) const
+{
+    return static_cast<int>(ability);
+}
+
+int Game::FindPeekTarget(bool requireAdjacentOnly) const
+{
+    int bestIdx = -1;
+    int bestDist = std::numeric_limits<int>::max();
+
+    for (int i = 0; i < static_cast<int>(week_.students.size()); ++i)
+    {
+        const Student& student = week_.students[i];
+        if (student.consumed)
+        {
+            continue;
+        }
+
+        const int dist = stealth::ManhattanDistance(player_.pos, student.pos);
+        bool valid = false;
+        if (dist == 1)
+        {
+            valid = true;
+        }
+        else if (!requireAdjacentOnly && player_.mirrorActive && CanMirrorPeekStudent(student))
+        {
+            valid = true;
+        }
+
+        if (!valid)
+        {
+            continue;
+        }
+
+        if (dist < bestDist)
+        {
+            bestDist = dist;
+            bestIdx = i;
+        }
+    }
+
+    return bestIdx;
+}
+
+int Game::FindAdjacentStudent() const
+{
+    return FindPeekTarget(true);
+}
+
+bool Game::CanMirrorPeekStudent(const Student& student) const
+{
+    const int dist = stealth::ManhattanDistance(player_.pos, student.pos);
+    if (dist > 2)
+    {
+        return false;
+    }
+    return stealth::HasLineOfSight(week_, player_.pos, student.pos, 1);
+}
+
+bool Game::IsCheatingActionActive() const
+{
+    return peeking_ || (cheatingActionTimer_ > 0.0f);
+}
+
+void Game::AddSuspicion(float amount)
+{
+    const float before = suspicion_;
+    suspicion_ = ClampF(suspicion_ + amount, config::kSuspicionMin, config::kSuspicionMax);
+    if (suspicion_ > peakSuspicion_)
+    {
+        peakSuspicion_ = suspicion_;
+    }
+
+    if (amount > 0.0f)
+    {
+        lastSuspiciousPos_ = player_.pos;
+    }
+
+    if (before < config::kSuspicionThreshold90 && suspicion_ >= config::kSuspicionThreshold90 &&
+        teacher_.state != TeacherState::Alert)
+    {
+        investigateTarget_ = lastSuspiciousPos_;
+        investigateRemainingSec_ = config::kAlertDurationSec;
+        teacher_.state = TeacherState::Alert;
+        teacher_.stateTimer = 0.0f;
+    }
+}
+
+void Game::AddProgress(int amount)
+{
+    quizProgress_ = std::min(static_cast<float>(config::kProgressTarget), quizProgress_ + static_cast<float>(amount));
+    totalProgress_ += static_cast<float>(amount);
+}
+
+void Game::StepTeacherToward(GridPos target, float moveIntervalSec)
+{
+    auto path = stealth::BuildPath(week_, teacher_.pos, target);
+    if (path.size() < 2)
+    {
+        return;
+    }
+
+    const GridPos from = teacher_.pos;
+    const GridPos to = path[1];
+
+    teacherMoveFrom_ = from;
+    teacherMoveTo_ = to;
+    teacherMoveT_ = 0.0f;
+
+    teacher_.pos = to;
+    teacherStepTimer_ = std::max(0.0f, teacherStepTimer_ - moveIntervalSec);
+    SetTeacherFacing(from, to);
+}
+
+void Game::SetTeacherFacing(GridPos from, GridPos to)
+{
+    teacher_.facingDeg = stealth::DirectionDeg(from, to);
+}
+
+float Game::EffectiveTeacherMoveSec() const
+{
+    float move = tuning_.teacherMoveSec;
+    if (suspicion_ >= config::kSuspicionThreshold70)
+    {
+        move /= config::kTeacherSpeedMultiplierAt70;
+    }
+    return std::max(0.10f, move);
+}
+
+float Game::EffectiveTeacherScanInterval() const
+{
+    float interval = tuning_.scanIntervalSec;
+    if (suspicion_ >= config::kSuspicionThreshold35)
+    {
+        interval *= config::kScanIntervalMultiplierAt35;
+    }
+    return interval;
+}
+
+float Game::EffectiveTeacherFovDeg() const
+{
+    float fov = tuning_.fovDeg;
+    if (suspicion_ >= config::kSuspicionThreshold70)
+    {
+        fov += config::kTeacherExtraFovAt70;
+    }
+    return fov;
+}
+
+bool Game::TeacherSeesPlayerNow() const
+{
+    return stealth::IsInTeacherFov(week_, teacher_, player_.pos, EffectiveTeacherFovDeg(), tuning_.fovRangeTiles);
+}
+
+int Game::ComputeScore() const
+{
+    int score = weeksCleared_ * 1000 + static_cast<int>(totalProgress_ * 5.0f) - static_cast<int>(peakSuspicion_ * 3.0f) -
+                timesSeenCheating_ * 100;
+    if (score < 0)
+    {
+        score = 0;
+    }
+    return score;
+}
+
+void Game::PlayPeekSfx()
+{
+    if (audioReady_ && sfxPeek_.loaded)
+    {
+        PlaySound(sfxPeek_.sound);
+    }
+}
+
+void Game::PlayAbilitySfx()
+{
+    if (audioReady_ && sfxAbility_.loaded)
+    {
+        PlaySound(sfxAbility_.sound);
+    }
+}
+
+void Game::PlayCaughtSfx()
+{
+    if (audioReady_ && sfxCaught_.loaded)
+    {
+        PlaySound(sfxCaught_.sound);
+    }
+}

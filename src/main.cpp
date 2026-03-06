@@ -1,33 +1,26 @@
 #include <raylib.h>
-#include <iostream>
-#include <deque>
 
-using namespace std;
-
-const int screenWidth = 750;
-const int screenHeight = 750;
+#include "Config.h"
+#include "Game.h"
 
 int main()
 {
-    // Initialization
-    InitWindow(screenWidth, screenHeight, "Retro Snake");
-    SetTargetFPS(60); 
-   
-    // Main game loop
-    while (!WindowShouldClose())    // Detect window close button or ESC key
+    InitWindow(config::kScreenWidth, config::kScreenHeight, "School 7DRL");
+    SetTargetFPS(60);
+
+    Game game{};
+    game.Init();
+
+    while (!WindowShouldClose() && !game.ShouldExit())
     {
-        // Event Handling
-
-        // Updating Positions
-
-        // Drawing
+        const float dt = GetFrameTime();
+        game.Update(dt);
 
         BeginDrawing();
-        ClearBackground(GREEN); 
-       
+        game.Draw();
         EndDrawing();
-
     }
+
     CloseWindow();
     return 0;
 }
