@@ -51,16 +51,36 @@ constexpr float kAbilityCooldownFakeCough = 18.0f;
 constexpr float kAbilityCooldownMirror = 20.0f;
 
 constexpr float kInvestigateDurationFakeCough = 2.5f;
+constexpr int kMaxWeeks = 10;
+
+constexpr int kPeekRangeBonusPerRank = 1;
+constexpr float kPeekSuspicionReductionPerRank = 0.20f;
+constexpr int kPeekProgressBonusPerRank = 3;
+constexpr float kDistractionSuspicionCost = 5.0f;
 
 inline WeekTuning GetWeekTuning(int weekIndex)
 {
-    switch (weekIndex)
+    if (weekIndex <= 1)
     {
-        case 1: return WeekTuning{0.35f, 70.0f, 5, 4.0f, 1.0f, 9};
-        case 2: return WeekTuning{0.28f, 82.0f, 6, 3.2f, 1.12f, 11};
-        case 3: return WeekTuning{0.22f, 95.0f, 7, 2.4f, 1.25f, 13};
-        default: return WeekTuning{0.22f, 95.0f, 7, 2.4f, 1.35f, 13};
+        return WeekTuning{0.35f, 70.0f, 5, 4.0f, 1.0f, 9};
     }
+    if (weekIndex == 2)
+    {
+        return WeekTuning{0.28f, 82.0f, 6, 3.2f, 1.12f, 11};
+    }
+    if (weekIndex == 3)
+    {
+        return WeekTuning{0.22f, 95.0f, 7, 2.4f, 1.25f, 13};
+    }
+
+    const int extraWeeks = weekIndex - 3;
+    const float moveSec = std::max(0.12f, 0.22f - 0.01f * static_cast<float>(extraWeeks));
+    const float fov = std::min(130.0f, 95.0f + 3.0f * static_cast<float>(extraWeeks));
+    const int range = std::min(10, 7 + ((extraWeeks + 1) / 2));
+    const float scanInterval = std::max(1.2f, 2.4f - 0.12f * static_cast<float>(extraWeeks));
+    const float suspicionGain = 1.25f + 0.05f * static_cast<float>(extraWeeks);
+    const int studentCount = std::min(18, 13 + extraWeeks / 2);
+    return WeekTuning{moveSec, fov, range, scanInterval, suspicionGain, studentCount};
 }
 
 inline int PeekGain(StudentTrait trait)
@@ -103,7 +123,7 @@ inline std::array<float, 3> TraitWeights(int weekIndex)
         case 1: return {0.35f, 0.50f, 0.15f};
         case 2: return {0.30f, 0.45f, 0.25f};
         case 3: return {0.25f, 0.40f, 0.35f};
-        default: return {0.20f, 0.40f, 0.40f};
+        default: return {0.15f, 0.35f, 0.50f};
     }
 }
 

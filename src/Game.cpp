@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <random>
 #include <string>
 
 #include "Config.h"
@@ -15,6 +16,7 @@ namespace
 {
 constexpr GridPos kMoveDirs[4] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
 constexpr float kDegToRad = 3.14159265f / 180.0f;
+constexpr int kAbilityCount = 3;
 
 float ClampF(float value, float minValue, float maxValue)
 {
@@ -60,6 +62,69 @@ int TraitHintIndex(const WeekData& week, GridPos playerPos)
         }
     }
     return best;
+}
+
+const char* UpgradeName(UpgradeType upgrade)
+{
+    switch (upgrade)
+    {
+        case UpgradeType::PeekRange: return "Long Reach";
+        case UpgradeType::PeekSuspicionDown: return "Quiet Hands";
+        case UpgradeType::PeekProgressUp: return "Quick Study";
+        case UpgradeType::Distraction: return "Distraction";
+        default: return "Upgrade";
+    }
+}
+
+const char* UpgradeDescription(UpgradeType upgrade)
+{
+    switch (upgrade)
+    {
+        case UpgradeType::PeekRange: return "+1 peek range";
+        case UpgradeType::PeekSuspicionDown: return "-20% suspicion on peek";
+        case UpgradeType::PeekProgressUp: return "+3 quiz progress per peek";
+        case UpgradeType::Distraction: return "+1 weekly distraction charge";
+        default: return "";
+    }
+}
+
+Color UpgradeColor(UpgradeType upgrade)
+{
+    switch (upgrade)
+    {
+        case UpgradeType::PeekRange: return Color{119, 210, 255, 255};
+        case UpgradeType::PeekSuspicionDown: return Color{130, 241, 170, 255};
+        case UpgradeType::PeekProgressUp: return Color{255, 208, 108, 255};
+        case UpgradeType::Distraction: return Color{248, 141, 109, 255};
+        default: return RAYWHITE;
+    }
+}
+
+AbilityType AbilityByIndex(int index)
+{
+    switch (index)
+    {
+        case 0: return AbilityType::Whisper;
+        case 1: return AbilityType::FakeCough;
+        case 2: return AbilityType::Mirror;
+        default: return AbilityType::Whisper;
+    }
+}
+
+const char* AbilityName(AbilityType ability)
+{
+    switch (ability)
+    {
+        case AbilityType::Whisper: return "Whisper";
+        case AbilityType::FakeCough: return "Fake Cough";
+        case AbilityType::Mirror: return "Mirror";
+        default: return "Unknown";
+    }
+}
+
+int AbilityUnlockCountForWeeksCleared(int weeksCleared)
+{
+    return std::max(0, std::min(weeksCleared, kAbilityCount));
 }
 } // namespace
 
@@ -112,6 +177,9 @@ void Game::Update(float dt)
             break;
         case GameState::WeekClear:
             UpdateWeekClearInput();
+            break;
+        case GameState::WeekUpgrade:
+            UpdateWeekUpgradeInput();
             break;
         case GameState::RunSuccess:
         case GameState::RunFail:
@@ -199,7 +267,7 @@ void Game::Draw() const
     renderui::DrawPanelBackground(panel);
 
     int y = config::kHudY + 16;
-    DrawText(TextFormat("Week %d / 3", weekIndex_), config::kHudX + 14, y, 24, RAYWHITE);
+    DrawText(TextFormat("Week %d / %d", weekIndex_, config::kMaxWeeks), config::kHudX + 14, y, 24, RAYWHITE);
     y += 30;
     DrawText(TextFormat("State: %s", renderui::TeacherStateName(teacher_.state)), config::kHudX + 14, y, 18,
              Color{191, 212, 227, 255});
@@ -233,6 +301,18 @@ void Game::Draw() const
                               abilityMode_ && selectedAbility_ == AbilityType::Mirror);
     y += 34;
 
+    if (unlockedAbilities_ == 0)
+    {
+        DrawText("Clear this week to unlock Whisper", config::kHudX + 14, y, 16, Color{170, 190, 207, 255});
+        y += 24;
+    }
+
+    DrawText(TextFormat("4  Distraction %s", HasDistractionCharge() ? "(ready)" : "(none)"), config::kHudX + 14, y, 18,
+             HasDistractionCharge() ? Color{249, 189, 133, 255} : Color{134, 140, 147, 255});
+    y += 26;
+    DrawText(TextFormat("Charges this week: %d", distractionCharges_), config::kHudX + 38, y, 16, Color{191, 212, 227, 255});
+    y += 30;
+
     if (player_.mirrorActive)
     {
         DrawText(TextFormat("Mirror Active: %.1fs", player_.mirrorTimer), config::kHudX + 14, y, 18,
@@ -242,6 +322,15 @@ void Game::Draw() const
     {
         DrawText("Mirror Active: No", config::kHudX + 14, y, 18, Color{150, 170, 186, 255});
     }
+    y += 30;
+
+    DrawText(TextFormat("Peek Range: %d", EffectivePeekRange()), config::kHudX + 14, y, 18, Color{174, 224, 255, 255});
+    y += 24;
+    DrawText(TextFormat("Peek Suspicion x%.2f", PeekSuspicionMultiplier()), config::kHudX + 14, y, 18,
+             Color{145, 232, 176, 255});
+    y += 24;
+    DrawText(TextFormat("Peek Progress Bonus: +%d", PeekProgressBonus()), config::kHudX + 14, y, 18,
+             Color{255, 209, 119, 255});
     y += 30;
 
     const int hintIdx = TraitHintIndex(week_, player_.pos);
@@ -255,13 +344,22 @@ void Game::Draw() const
     DrawText("WASD move, Hold SPACE peek/submit", config::kHudX + 14, y, 16, Color{165, 189, 207, 255});
     y += 22;
     DrawText("Cheating in FOV for 0.2s = run over", config::kHudX + 14, y, 16, Color{220, 158, 130, 255});
+    y += 22;
+    DrawText("Seen from 1 tile away = instant loss", config::kHudX + 14, y, 16, Color{244, 132, 132, 255});
 
     if (abilityMode_ && state_ == GameState::InWeek)
     {
         DrawRectangle(0, 0, config::kScreenWidth, config::kScreenHeight, Color{8, 12, 18, 136});
         DrawRectangleRounded(Rectangle{100, 120, 760, 160}, 0.08f, 8, Color{23, 34, 47, 245});
         DrawText("Ability Mode", 120, 150, 34, Color{180, 235, 199, 255});
-        DrawText("1/2/3 select, ENTER cast, ESC/TAB cancel", 120, 194, 22, RAYWHITE);
+        if (unlockedAbilities_ == 0)
+        {
+            DrawText("No abilities unlocked yet. Clear this week to earn Whisper.", 120, 194, 22, RAYWHITE);
+        }
+        else
+        {
+            DrawText("1/2/3 select, ENTER cast, 4 distraction, ESC/TAB cancel", 120, 194, 22, RAYWHITE);
+        }
     }
 
     if (showDebug_)
@@ -289,6 +387,32 @@ void Game::Draw() const
     else if (state_ == GameState::WeekClear)
     {
         renderui::DrawCenteredMessage(TextFormat("Week %d Cleared", weekIndex_), "Press ENTER for next week.", WHITE);
+    }
+    else if (state_ == GameState::WeekUpgrade)
+    {
+        DrawRectangle(0, 0, config::kScreenWidth, config::kScreenHeight, Color{8, 12, 18, 170});
+        DrawText(TextFormat("Week %d Cleared", weekIndex_), 282, 86, 40, RAYWHITE);
+        DrawText("Pick 1 of 3 run upgrades", 318, 126, 24, Color{179, 202, 219, 255});
+        if (lastUnlockedAbilityIndex_ >= 0)
+        {
+            DrawText(TextFormat("New ability unlocked: %s", AbilityName(AbilityByIndex(lastUnlockedAbilityIndex_))), 278, 156,
+                     22, Color{180, 235, 199, 255});
+        }
+
+        for (int i = 0; i < 3; ++i)
+        {
+            const float x = 110.0f + static_cast<float>(i) * 245.0f;
+            const Rectangle card{x, 195.0f, 205.0f, 220.0f};
+            const UpgradeType upgrade = offeredUpgrades_[i];
+            const Color accent = UpgradeColor(upgrade);
+            DrawRectangleRounded(card, 0.08f, 8, Color{24, 33, 44, 245});
+            DrawRectangleRoundedLinesEx(card, 0.08f, 8, 3.0f, accent);
+            DrawText(TextFormat("%d", i + 1), static_cast<int>(x + 16.0f), 214, 28, accent);
+            DrawText(UpgradeName(upgrade), static_cast<int>(x + 16.0f), 258, 28, RAYWHITE);
+            DrawText(UpgradeDescription(upgrade), static_cast<int>(x + 16.0f), 302, 20, accent);
+        }
+
+        DrawText("Press 1, 2, or 3 to continue to the next week", 224, 458, 22, RAYWHITE);
     }
     else if (state_ == GameState::RunFail)
     {
@@ -319,6 +443,13 @@ void Game::StartNewRun()
     timesSeenCheating_ = 0;
     failReason_.clear();
     abilityCooldowns_ = {0.0f, 0.0f, 0.0f};
+    peekRangeRanks_ = 0;
+    peekSuspicionRanks_ = 0;
+    peekProgressRanks_ = 0;
+    distractionRanks_ = 0;
+    distractionCharges_ = 0;
+    unlockedAbilities_ = 0;
+    lastUnlockedAbilityIndex_ = -1;
 
     StartWeek(1);
 }
@@ -332,6 +463,7 @@ void Game::StartWeek(int weekIndex)
     player_.pos = week_.playerSpawn;
     player_.mirrorActive = false;
     player_.mirrorTimer = 0.0f;
+    distractionCharges_ = distractionRanks_;
 
     if (week_.patrol.empty())
     {
@@ -381,12 +513,58 @@ void Game::StartWeek(int weekIndex)
 void Game::AdvanceWeekOrEndRun()
 {
     weeksCleared_++;
-    if (weekIndex_ >= 3)
+    const int newUnlockedAbilities = AbilityUnlockCountForWeeksCleared(weeksCleared_);
+    if (newUnlockedAbilities > unlockedAbilities_)
+    {
+        lastUnlockedAbilityIndex_ = newUnlockedAbilities - 1;
+        unlockedAbilities_ = newUnlockedAbilities;
+    }
+    else
+    {
+        lastUnlockedAbilityIndex_ = -1;
+    }
+
+    if (weekIndex_ >= config::kMaxWeeks)
     {
         state_ = GameState::RunSuccess;
         return;
     }
-    state_ = GameState::WeekClear;
+    RollUpgradeChoices();
+    state_ = GameState::WeekUpgrade;
+}
+
+void Game::RollUpgradeChoices()
+{
+    std::array<UpgradeType, 4> pool{{UpgradeType::PeekRange, UpgradeType::PeekSuspicionDown,
+                                     UpgradeType::PeekProgressUp, UpgradeType::Distraction}};
+    std::mt19937 rng(runSeed_ + static_cast<uint32_t>(weekIndex_ * 7919 + weeksCleared_ * 313));
+    std::shuffle(pool.begin(), pool.end(), rng);
+    for (int i = 0; i < 3; ++i)
+    {
+        offeredUpgrades_[i] = pool[i];
+    }
+}
+
+void Game::ApplyUpgrade(UpgradeType upgrade)
+{
+    switch (upgrade)
+    {
+        case UpgradeType::PeekRange:
+            peekRangeRanks_++;
+            break;
+        case UpgradeType::PeekSuspicionDown:
+            peekSuspicionRanks_++;
+            break;
+        case UpgradeType::PeekProgressUp:
+            peekProgressRanks_++;
+            break;
+        case UpgradeType::Distraction:
+            distractionRanks_++;
+            distractionCharges_++;
+            break;
+        default:
+            break;
+    }
 }
 
 void Game::EnterFail(const std::string& reason)
@@ -424,6 +602,25 @@ void Game::UpdateWeekClearInput()
     }
 }
 
+void Game::UpdateWeekUpgradeInput()
+{
+    if (IsKeyPressed(KEY_ONE))
+    {
+        ApplyUpgrade(offeredUpgrades_[0]);
+        StartWeek(weekIndex_ + 1);
+    }
+    else if (IsKeyPressed(KEY_TWO))
+    {
+        ApplyUpgrade(offeredUpgrades_[1]);
+        StartWeek(weekIndex_ + 1);
+    }
+    else if (IsKeyPressed(KEY_THREE))
+    {
+        ApplyUpgrade(offeredUpgrades_[2]);
+        StartWeek(weekIndex_ + 1);
+    }
+}
+
 void Game::UpdateEndScreenInput()
 {
     if (IsKeyPressed(KEY_ENTER))
@@ -437,6 +634,8 @@ void Game::UpdateInWeek(float dt)
     if (IsKeyPressed(KEY_TAB))
     {
         abilityMode_ = !abilityMode_;
+        peeking_ = false;
+        return;
     }
 
     if (abilityMode_)
@@ -570,6 +769,12 @@ void Game::UpdateSuspicion(float dt)
     const bool seesPlayerNow = TeacherSeesPlayerNow();
     teacherSeesPlayer_ = seesPlayerNow;
 
+    if (seesPlayerNow && stealth::ManhattanDistance(player_.pos, teacher_.pos) <= 1)
+    {
+        EnterFail("Teacher saw you at point-blank range.");
+        return;
+    }
+
     suspicionRate_ = 0.0f;
     if (seesPlayerNow && cheatingNow)
     {
@@ -644,7 +849,7 @@ void Game::UpdateInteractions(float dt)
     }
 
     peeking_ = true;
-    AddSuspicion(config::kSuspicionPeekPerSec * dt);
+    AddSuspicion(config::kSuspicionPeekPerSec * PeekSuspicionMultiplier() * dt);
     cheatingActionTimer_ = std::max(cheatingActionTimer_, 0.05f);
     peekHoldSec_ += dt;
 
@@ -655,8 +860,8 @@ void Game::UpdateInteractions(float dt)
         if (!student.consumed)
         {
             student.consumed = true;
-            AddProgress(config::PeekGain(student.trait));
-            AddSuspicion(4.0f);
+            AddProgress(config::PeekGain(student.trait) + PeekProgressBonus());
+            AddSuspicion(4.0f * PeekSuspicionMultiplier());
             PlayPeekSfx();
         }
     }
@@ -710,7 +915,7 @@ void Game::HandleMovementInput()
 
 void Game::HandleAbilityModeInput()
 {
-    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_TAB))
+    if (IsKeyPressed(KEY_ESCAPE))
     {
         abilityMode_ = false;
         return;
@@ -732,6 +937,15 @@ void Game::HandleAbilityModeInput()
     if (IsKeyPressed(KEY_ENTER))
     {
         CastSelectedAbility();
+    }
+
+    if (IsKeyPressed(KEY_FOUR))
+    {
+        if (TriggerDistraction())
+        {
+            abilityMode_ = false;
+            PlayAbilitySfx();
+        }
     }
 }
 
@@ -835,15 +1049,28 @@ bool Game::TriggerMirror()
     return true;
 }
 
+bool Game::TriggerDistraction()
+{
+    if (!HasDistractionCharge())
+    {
+        return false;
+    }
+
+    const GridPos awayTarget{teacher_.pos.x - (player_.pos.x - teacher_.pos.x),
+                             teacher_.pos.y - (player_.pos.y - teacher_.pos.y)};
+    teacher_.facingDeg = stealth::DirectionDeg(teacher_.pos, awayTarget);
+    teacher_.state = TeacherState::Scan;
+    teacher_.stateTimer = 0.0f;
+    distractionCharges_--;
+    AddSuspicion(config::kDistractionSuspicionCost);
+    cheatingActionTimer_ = std::max(cheatingActionTimer_, 0.15f);
+    return true;
+}
+
 bool Game::IsAbilityUnlocked(AbilityType ability) const
 {
-    switch (ability)
-    {
-        case AbilityType::Whisper: return weekIndex_ >= 1;
-        case AbilityType::FakeCough: return weekIndex_ >= 2;
-        case AbilityType::Mirror: return weekIndex_ >= 3;
-        default: return false;
-    }
+    const int idx = AbilityIndex(ability);
+    return idx >= 0 && idx < unlockedAbilities_;
 }
 
 int Game::AbilityIndex(AbilityType ability) const
@@ -855,6 +1082,7 @@ int Game::FindPeekTarget(bool requireAdjacentOnly) const
 {
     int bestIdx = -1;
     int bestDist = std::numeric_limits<int>::max();
+    const int maxPeekRange = requireAdjacentOnly ? 1 : EffectivePeekRange();
 
     for (int i = 0; i < static_cast<int>(week_.students.size()); ++i)
     {
@@ -866,7 +1094,7 @@ int Game::FindPeekTarget(bool requireAdjacentOnly) const
 
         const int dist = stealth::ManhattanDistance(player_.pos, student.pos);
         bool valid = false;
-        if (dist == 1)
+        if (dist >= 1 && dist <= maxPeekRange && stealth::HasLineOfSight(week_, player_.pos, student.pos, 0))
         {
             valid = true;
         }
@@ -998,6 +1226,27 @@ float Game::EffectiveTeacherFovDeg() const
 bool Game::TeacherSeesPlayerNow() const
 {
     return stealth::IsInTeacherFov(week_, teacher_, player_.pos, EffectiveTeacherFovDeg(), tuning_.fovRangeTiles);
+}
+
+int Game::EffectivePeekRange() const
+{
+    return 1 + peekRangeRanks_ * config::kPeekRangeBonusPerRank;
+}
+
+float Game::PeekSuspicionMultiplier() const
+{
+    const float multiplier = 1.0f - static_cast<float>(peekSuspicionRanks_) * config::kPeekSuspicionReductionPerRank;
+    return std::max(0.2f, multiplier);
+}
+
+int Game::PeekProgressBonus() const
+{
+    return peekProgressRanks_ * config::kPeekProgressBonusPerRank;
+}
+
+bool Game::HasDistractionCharge() const
+{
+    return distractionCharges_ > 0;
 }
 
 int Game::ComputeScore() const

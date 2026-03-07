@@ -9,6 +9,7 @@ enum class GameState
     WeekIntro,
     InWeek,
     WeekClear,
+    WeekUpgrade,
     RunSuccess,
     RunFail
 };
@@ -42,6 +43,14 @@ enum class AbilityType
     Whisper = 0,
     FakeCough = 1,
     Mirror = 2
+};
+
+enum class UpgradeType
+{
+    PeekRange,
+    PeekSuspicionDown,
+    PeekProgressUp,
+    Distraction
 };
 
 struct GridPos

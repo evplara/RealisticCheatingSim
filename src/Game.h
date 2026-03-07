@@ -20,11 +20,14 @@ private:
     void StartNewRun();
     void StartWeek(int weekIndex);
     void AdvanceWeekOrEndRun();
+    void RollUpgradeChoices();
+    void ApplyUpgrade(UpgradeType upgrade);
     void EnterFail(const std::string& reason);
 
     void UpdateMenuInput();
     void UpdateWeekIntroInput();
     void UpdateWeekClearInput();
+    void UpdateWeekUpgradeInput();
     void UpdateEndScreenInput();
 
     void UpdateInWeek(float dt);
@@ -42,6 +45,7 @@ private:
     bool TriggerWhisper();
     bool TriggerFakeCough();
     bool TriggerMirror();
+    bool TriggerDistraction();
 
     bool IsAbilityUnlocked(AbilityType ability) const;
     int AbilityIndex(AbilityType ability) const;
@@ -59,6 +63,10 @@ private:
     float EffectiveTeacherScanInterval() const;
     float EffectiveTeacherFovDeg() const;
     bool TeacherSeesPlayerNow() const;
+    int EffectivePeekRange() const;
+    float PeekSuspicionMultiplier() const;
+    int PeekProgressBonus() const;
+    bool HasDistractionCharge() const;
 
     int ComputeScore() const;
     void PlayPeekSfx();
@@ -80,6 +88,8 @@ private:
     WeekTuning tuning_{};
     int weekIndex_ = 1;
     uint32_t runSeed_ = 0;
+    std::array<UpgradeType, 3> offeredUpgrades_{{UpgradeType::PeekRange, UpgradeType::PeekSuspicionDown,
+                                                 UpgradeType::PeekProgressUp}};
 
     Player player_{};
     Teacher teacher_{};
@@ -97,6 +107,13 @@ private:
     float totalProgress_ = 0.0f;
     int weeksCleared_ = 0;
     int timesSeenCheating_ = 0;
+    int peekRangeRanks_ = 0;
+    int peekSuspicionRanks_ = 0;
+    int peekProgressRanks_ = 0;
+    int distractionRanks_ = 0;
+    int distractionCharges_ = 0;
+    int unlockedAbilities_ = 0;
+    int lastUnlockedAbilityIndex_ = -1;
 
     bool abilityMode_ = false;
     AbilityType selectedAbility_ = AbilityType::Whisper;
