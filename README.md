@@ -1,6 +1,6 @@
-# School 7DRL
+# Realistic Cheating Simulator
 
-Top-down classroom stealth roguelike prototype using Raylib.
+Top-down classroom stealth roguelike using Raylib.
 
 ## Controls
 
@@ -34,7 +34,12 @@ Top-down classroom stealth roguelike prototype using Raylib.
 
 - `Distraction`: starts with 1 weekly charge to force the teacher to face away
 
-## Audio
+## Attributes
 
-Placeholder audio files live in `resources/audio/`.
-If files are missing or invalid, gameplay continues without audio cues.
+Caught sound effect, "caught.wav" from https://opengameart.org/content/wrong-choice-caught by DavidW
+
+Licensed under CC-BY 4.0
+
+Abiltiy Sound Effect, "ability.wav" from https://opengameart.org/content/7-assorted-sound-effects-menu-level-up sound effect 3 "Item Pickup" by Joth
+
+Peek sound effect, "peek.wav" from https://opengameart.org/node/132692 by NachtmahrTV 
