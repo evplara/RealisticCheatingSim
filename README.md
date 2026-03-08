@@ -2,6 +2,8 @@
 Play on itch.io !!!
 https://koolaid77.itch.io/realistic-cheating-sim
 
+<img width="1279" height="959" alt="Screenshot 2026-03-07 221713" src="https://github.com/user-attachments/assets/cb8169b7-851b-4dbc-818a-3604f822c6b9" />
+
 Top-down classroom stealth roguelike using Raylib.
 
 ## Controls
