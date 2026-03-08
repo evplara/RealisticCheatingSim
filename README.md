@@ -27,18 +27,19 @@ mingw32-make
 - Fill quiz progress to `100`, then reach and hold on `SUBMIT`.
 - If teacher sees cheating actions for at least `0.2s`, run ends (permadeath).
 - If teacher directly spots you from 1 tile away, the run ends immediately.
-- After each cleared week, pick 1 of 3 run upgrades.
-- Abilities are earned after clears, not at run start:
-- Clear Week 1: unlock `Whisper` for Week 2
-- Clear Week 2: unlock `Fake Cough` for Week 3
-- Clear Week 3: unlock `Mirror` for Week 4
+- After each cleared week, draft 1 of 3 random rewards.
+- The reward pool mixes 3 stat upgrades with 3 ability unlocks.
+- Abilities start locked and only unlock if you choose them.
 
 ## Run Upgrades
 
 - `Long Reach`: +1 peek range
 - `Quiet Hands`: -20% suspicion gained on peeks
 - `Quick Study`: +3 quiz progress per peek
-- `Distraction`: +1 weekly charge to force the teacher to face away
+
+## Tricks
+
+- `Distraction`: starts with 1 weekly charge to force the teacher to face away
 
 ## Audio
 

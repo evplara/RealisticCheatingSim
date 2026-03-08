@@ -52,6 +52,9 @@ enum class UpgradeType
     PeekRange,
     PeekSuspicionDown,
     PeekProgressUp,
+    UnlockWhisper,
+    UnlockFakeCough,
+    UnlockMirror,
     Distraction
 };
 

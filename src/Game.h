@@ -116,8 +116,7 @@ private:
     int peekProgressRanks_ = 0;
     int distractionRanks_ = 0;
     int distractionCharges_ = 0;
-    int unlockedAbilities_ = 0;
-    int lastUnlockedAbilityIndex_ = -1;
+    std::array<bool, 3> unlockedAbilities_{{false, false, false}};
 
     bool abilityMode_ = false;
     AbilityType selectedAbility_ = AbilityType::Whisper;

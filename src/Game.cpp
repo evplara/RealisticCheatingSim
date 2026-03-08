@@ -71,6 +71,9 @@ const char* UpgradeName(UpgradeType upgrade)
         case UpgradeType::PeekRange: return "Long Reach";
         case UpgradeType::PeekSuspicionDown: return "Quiet Hands";
         case UpgradeType::PeekProgressUp: return "Quick Study";
+        case UpgradeType::UnlockWhisper: return "Whisper";
+        case UpgradeType::UnlockFakeCough: return "Fake Cough";
+        case UpgradeType::UnlockMirror: return "Mirror";
         case UpgradeType::Distraction: return "Distraction";
         default: return "Upgrade";
     }
@@ -83,6 +86,9 @@ const char* UpgradeDescription(UpgradeType upgrade)
         case UpgradeType::PeekRange: return "+1 peek range";
         case UpgradeType::PeekSuspicionDown: return "-20% suspicion on peek";
         case UpgradeType::PeekProgressUp: return "+3 quiz progress per peek";
+        case UpgradeType::UnlockWhisper: return "Unlock this ability";
+        case UpgradeType::UnlockFakeCough: return "Unlock this ability";
+        case UpgradeType::UnlockMirror: return "Unlock this ability";
         case UpgradeType::Distraction: return "+1 weekly distraction charge";
         default: return "";
     }
@@ -95,6 +101,9 @@ Color UpgradeColor(UpgradeType upgrade)
         case UpgradeType::PeekRange: return Color{119, 210, 255, 255};
         case UpgradeType::PeekSuspicionDown: return Color{130, 241, 170, 255};
         case UpgradeType::PeekProgressUp: return Color{255, 208, 108, 255};
+        case UpgradeType::UnlockWhisper: return Color{97, 191, 255, 255};
+        case UpgradeType::UnlockFakeCough: return Color{245, 173, 108, 255};
+        case UpgradeType::UnlockMirror: return Color{180, 213, 255, 255};
         case UpgradeType::Distraction: return Color{248, 141, 109, 255};
         default: return RAYWHITE;
     }
@@ -111,20 +120,9 @@ AbilityType AbilityByIndex(int index)
     }
 }
 
-const char* AbilityName(AbilityType ability)
+int CountUnlockedAbilities(const std::array<bool, kAbilityCount>& unlocked)
 {
-    switch (ability)
-    {
-        case AbilityType::Whisper: return "Whisper";
-        case AbilityType::FakeCough: return "Fake Cough";
-        case AbilityType::Mirror: return "Mirror";
-        default: return "Unknown";
-    }
-}
-
-int AbilityUnlockCountForWeeksCleared(int weeksCleared)
-{
-    return std::max(0, std::min(weeksCleared, kAbilityCount));
+    return static_cast<int>(std::count(unlocked.begin(), unlocked.end(), true));
 }
 
 Rectangle MenuButtonRect(int index)
@@ -444,9 +442,9 @@ void Game::Draw() const
                               abilityMode_ && selectedAbility_ == AbilityType::Mirror);
     y += 34;
 
-    if (unlockedAbilities_ == 0)
+    if (CountUnlockedAbilities(unlockedAbilities_) == 0)
     {
-        DrawText("Clear this week to unlock Whisper", config::kHudX + 14, y, 16, Color{170, 190, 207, 255});
+        DrawText("Draft an ability from weekly rewards", config::kHudX + 14, y, 16, Color{170, 190, 207, 255});
         y += 24;
     }
 
@@ -497,9 +495,9 @@ void Game::Draw() const
         DrawRectangleRounded(modal, 0.08f, 8, Color{23, 34, 47, 245});
         DrawText("Ability Mode", static_cast<int>(modal.x + 28.0f), static_cast<int>(modal.y + 28.0f), 38,
                  Color{180, 235, 199, 255});
-        if (unlockedAbilities_ == 0)
+        if (CountUnlockedAbilities(unlockedAbilities_) == 0)
         {
-            DrawText("No abilities unlocked yet. Clear this week to earn Whisper.", static_cast<int>(modal.x + 28.0f),
+            DrawText("No abilities unlocked yet. Draft one from a weekly reward.", static_cast<int>(modal.x + 28.0f),
                      static_cast<int>(modal.y + 86.0f), 24, RAYWHITE);
         }
         else
@@ -547,14 +545,11 @@ void Game::Draw() const
         const std::string weekClearTitle = TextFormat("Week %d Cleared", weekIndex_);
         DrawRectangle(0, 0, config::kScreenWidth, config::kScreenHeight, Color{8, 12, 18, 170});
         DrawText(weekClearTitle.c_str(), config::kScreenWidth / 2 - MeasureText(weekClearTitle.c_str(), 44) / 2, titleY, 44, RAYWHITE);
-        DrawText("Pick 1 of 3 run upgrades",
-                 config::kScreenWidth / 2 - MeasureText("Pick 1 of 3 run upgrades", 28) / 2, subtitleY, 28, Color{179, 202, 219, 255});
-        if (lastUnlockedAbilityIndex_ >= 0)
-        {
-            const std::string unlockText = TextFormat("New ability unlocked: %s", AbilityName(AbilityByIndex(lastUnlockedAbilityIndex_)));
-            DrawText(unlockText.c_str(), config::kScreenWidth / 2 - MeasureText(unlockText.c_str(), 24) / 2, unlockY, 24,
-                     Color{180, 235, 199, 255});
-        }
+        DrawText("Pick 1 of 3 random rewards",
+                 config::kScreenWidth / 2 - MeasureText("Pick 1 of 3 random rewards", 28) / 2, subtitleY, 28, Color{179, 202, 219, 255});
+        DrawText("Stat boosts and ability unlocks can both appear here.",
+                 config::kScreenWidth / 2 - MeasureText("Stat boosts and ability unlocks can both appear here.", 24) / 2, unlockY, 24,
+                 Color{180, 235, 199, 255});
 
         for (int i = 0; i < 3; ++i)
         {
@@ -658,9 +653,10 @@ void Game::DrawHelpScreen() const
     DrawSectionCard(progressCard, "How You Progress", Color{250, 249, 255, 255}, Color{72, 129, 198, 255});
     DrawBullet(static_cast<int>(progressCard.x + 18.0f), 166, Color{72, 129, 198, 255}, "Each run lasts 10 harder weeks.");
     DrawBullet(static_cast<int>(progressCard.x + 18.0f), 200, Color{72, 129, 198, 255}, "Later weeks need more peeks: gain drops and more students appear.");
-    DrawBullet(static_cast<int>(progressCard.x + 18.0f), 234, Color{72, 129, 198, 255}, "After every clear, pick 1 of 3 upgrades.");
+    DrawBullet(static_cast<int>(progressCard.x + 18.0f), 234, Color{72, 129, 198, 255},
+               "After every clear, draft 1 of 3 random rewards.");
     DrawBullet(static_cast<int>(progressCard.x + 18.0f), 268, Color{72, 129, 198, 255},
-               "Clearing Weeks 1-3 unlocks Whisper, Fake Cough, then Mirror.");
+               "The pool mixes 3 stat boosts with 3 ability unlocks.");
 
     DrawSectionCard(abilityCard, "Abilities And Tricks", Color{255, 247, 233, 255}, Color{213, 128, 68, 255});
     DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 412, Color{213, 128, 68, 255}, "Whisper: grab a nearby answer instantly.");
@@ -731,10 +727,9 @@ void Game::StartNewRun()
     peekRangeRanks_ = 0;
     peekSuspicionRanks_ = 0;
     peekProgressRanks_ = 0;
-    distractionRanks_ = 0;
-    distractionCharges_ = 0;
-    unlockedAbilities_ = 0;
-    lastUnlockedAbilityIndex_ = -1;
+    distractionRanks_ = 1;
+    distractionCharges_ = 1;
+    unlockedAbilities_ = {false, false, false};
 
     StartWeek(1);
 }
@@ -774,6 +769,18 @@ void Game::StartWeek(int weekIndex)
     teacherSeesPlayer_ = false;
     abilityMode_ = false;
     selectedAbility_ = AbilityType::Whisper;
+    if (!IsAbilityUnlocked(selectedAbility_))
+    {
+        for (int i = 0; i < kAbilityCount; ++i)
+        {
+            const AbilityType ability = AbilityByIndex(i);
+            if (IsAbilityUnlocked(ability))
+            {
+                selectedAbility_ = ability;
+                break;
+            }
+        }
+    }
 
     playerMoving_ = false;
     playerMoveFrom_ = player_.pos;
@@ -798,17 +805,6 @@ void Game::StartWeek(int weekIndex)
 void Game::AdvanceWeekOrEndRun()
 {
     weeksCleared_++;
-    const int newUnlockedAbilities = AbilityUnlockCountForWeeksCleared(weeksCleared_);
-    if (newUnlockedAbilities > unlockedAbilities_)
-    {
-        lastUnlockedAbilityIndex_ = newUnlockedAbilities - 1;
-        unlockedAbilities_ = newUnlockedAbilities;
-    }
-    else
-    {
-        lastUnlockedAbilityIndex_ = -1;
-    }
-
     if (weekIndex_ >= config::kMaxWeeks)
     {
         state_ = GameState::RunSuccess;
@@ -820,8 +816,24 @@ void Game::AdvanceWeekOrEndRun()
 
 void Game::RollUpgradeChoices()
 {
-    std::array<UpgradeType, 4> pool{{UpgradeType::PeekRange, UpgradeType::PeekSuspicionDown,
-                                     UpgradeType::PeekProgressUp, UpgradeType::Distraction}};
+    std::vector<UpgradeType> pool{
+        UpgradeType::PeekRange,
+        UpgradeType::PeekSuspicionDown,
+        UpgradeType::PeekProgressUp,
+    };
+    if (!IsAbilityUnlocked(AbilityType::Whisper))
+    {
+        pool.push_back(UpgradeType::UnlockWhisper);
+    }
+    if (!IsAbilityUnlocked(AbilityType::FakeCough))
+    {
+        pool.push_back(UpgradeType::UnlockFakeCough);
+    }
+    if (!IsAbilityUnlocked(AbilityType::Mirror))
+    {
+        pool.push_back(UpgradeType::UnlockMirror);
+    }
+
     std::mt19937 rng(runSeed_ + static_cast<uint32_t>(weekIndex_ * 7919 + weeksCleared_ * 313));
     std::shuffle(pool.begin(), pool.end(), rng);
     for (int i = 0; i < 3; ++i)
@@ -842,6 +854,18 @@ void Game::ApplyUpgrade(UpgradeType upgrade)
             break;
         case UpgradeType::PeekProgressUp:
             peekProgressRanks_++;
+            break;
+        case UpgradeType::UnlockWhisper:
+            unlockedAbilities_[AbilityIndex(AbilityType::Whisper)] = true;
+            selectedAbility_ = AbilityType::Whisper;
+            break;
+        case UpgradeType::UnlockFakeCough:
+            unlockedAbilities_[AbilityIndex(AbilityType::FakeCough)] = true;
+            selectedAbility_ = AbilityType::FakeCough;
+            break;
+        case UpgradeType::UnlockMirror:
+            unlockedAbilities_[AbilityIndex(AbilityType::Mirror)] = true;
+            selectedAbility_ = AbilityType::Mirror;
             break;
         case UpgradeType::Distraction:
             distractionRanks_++;
@@ -1424,7 +1448,7 @@ bool Game::TriggerDistraction()
 bool Game::IsAbilityUnlocked(AbilityType ability) const
 {
     const int idx = AbilityIndex(ability);
-    return idx >= 0 && idx < unlockedAbilities_;
+    return idx >= 0 && idx < static_cast<int>(unlockedAbilities_.size()) && unlockedAbilities_[idx];
 }
 
 int Game::AbilityIndex(AbilityType ability) const
