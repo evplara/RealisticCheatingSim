@@ -75,6 +75,7 @@ private:
     void PlayCaughtSfx();
     void DrawMainMenu() const;
     void DrawHelpScreen() const;
+    void DrawRunFailScreen() const;
 
 private:
     struct RuntimeSound

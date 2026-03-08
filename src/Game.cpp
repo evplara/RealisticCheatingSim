@@ -129,10 +129,10 @@ int AbilityUnlockCountForWeeksCleared(int weeksCleared)
 
 Rectangle MenuButtonRect(int index)
 {
-    constexpr float buttonWidth = 332.0f;
-    constexpr float buttonHeight = 82.0f;
-    constexpr float startY = 258.0f;
-    constexpr float gapY = 26.0f;
+    constexpr float buttonWidth = 420.0f;
+    constexpr float buttonHeight = 96.0f;
+    constexpr float gapY = 30.0f;
+    const float startY = config::kScreenHeight * 0.34f;
     return Rectangle{(config::kScreenWidth - buttonWidth) * 0.5f,
                      startY + static_cast<float>(index) * (buttonHeight + gapY),
                      buttonWidth,
@@ -141,8 +141,19 @@ Rectangle MenuButtonRect(int index)
 
 Rectangle HelpBackButtonRect()
 {
-    return Rectangle{static_cast<float>(config::kScreenWidth - 250), static_cast<float>(config::kScreenHeight - 96), 190.0f,
-                     52.0f};
+    return Rectangle{static_cast<float>(config::kScreenWidth - 300), static_cast<float>(config::kScreenHeight - 104), 230.0f,
+                     60.0f};
+}
+
+Rectangle RunFailButtonRect(int index)
+{
+    constexpr float buttonWidth = 280.0f;
+    constexpr float buttonHeight = 84.0f;
+    constexpr float gap = 34.0f;
+    const float totalWidth = buttonWidth * 2.0f + gap;
+    const float startX = (config::kScreenWidth - totalWidth) * 0.5f;
+    const float y = config::kScreenHeight * 0.64f;
+    return Rectangle{startX + static_cast<float>(index) * (buttonWidth + gap), y, buttonWidth, buttonHeight};
 }
 
 Color ButtonFillColor(int index)
@@ -170,44 +181,46 @@ Color ButtonOutlineColor(int index)
 void DrawPosterBackground()
 {
     ClearBackground(Color{249, 241, 191, 255});
+    const int marginX = 108;
+    const int smileX = config::kScreenWidth - 118;
+    const int bottomY = config::kScreenHeight - 64;
+    const int rightTextX = config::kScreenWidth - 320;
 
     for (int y = 36; y < config::kScreenHeight; y += 34)
     {
         DrawLine(0, y, config::kScreenWidth, y, Color{191, 221, 255, 255});
     }
 
-    DrawLine(92, 0, 92, config::kScreenHeight, Color{244, 132, 132, 255});
-    DrawCircle(106, 92, 42.0f, Color{255, 215, 112, 255});
-    DrawCircle(92, 84, 6.0f, BLACK);
-    DrawCircle(112, 84, 6.0f, BLACK);
-    DrawCircleLines(106, 92, 42.0f, Color{208, 144, 54, 255});
-DrawCircleSectorLines(
-    Vector2{106.0f, 92.0f},   // center moved left
-    36.0f,                     // radius
-    0.0f,
-    180.0f,
-    32,
-    Color{118, 82, 52, 255}
-);
-    DrawCircle(860, 110, 52.0f, Color{255, 242, 175, 255});
-    DrawCircle(844, 102, 6.0f, BLACK);
-    DrawCircle(876, 102, 6.0f, BLACK);
+    DrawLine(marginX, 0, marginX, config::kScreenHeight, Color{244, 132, 132, 255});
+    DrawCircle(marginX + 14, 104, 42.0f, Color{255, 215, 112, 255});
+    DrawCircle(marginX, 96, 6.0f, BLACK);
+    DrawCircle(marginX + 20, 96, 6.0f, BLACK);
+    DrawCircleLines(marginX + 14, 104, 42.0f, Color{208, 144, 54, 255});
     DrawCircleSectorLines(
-        Vector2{860.0f, 128.0f},  // center
-        18.0f,                    // radius
-        0.0f,                     // start angle
-        180.0f,                   // end angle
-        32,                       // segments
-        Color{118, 82, 52, 255}
-    );
+        Vector2{static_cast<float>(marginX + 14), 104.0f},
+        36.0f,
+        0.0f,
+        180.0f,
+        32,
+        Color{118, 82, 52, 255});
+    DrawCircle(smileX, 126, 52.0f, Color{255, 242, 175, 255});
+    DrawCircle(smileX - 16, 118, 6.0f, BLACK);
+    DrawCircle(smileX + 16, 118, 6.0f, BLACK);
+    DrawCircleSectorLines(
+        Vector2{static_cast<float>(smileX), 144.0f},
+        18.0f,
+        0.0f,
+        180.0f,
+        32,
+        Color{118, 82, 52, 255});
 
-    DrawCircle(60, 680, 32.0f, Color{152, 225, 255, 255});
-    DrawCircleLines(60, 680, 32.0f, Color{62, 127, 172, 255});
-    DrawText("WOW!", 35, 670, 22, Color{62, 127, 172, 255});
+    DrawCircle(156, config::kScreenHeight - 92, 32.0f, Color{152, 225, 255, 255});
+    DrawCircleLines(156, config::kScreenHeight - 92, 32.0f, Color{62, 127, 172, 255});
+    DrawText("WOW!", 128, config::kScreenHeight - 104, 22, Color{62, 127, 172, 255});
 
-    DrawText("A+ vibes only", 600, 15, 28, Color{89, 144, 104, 255});
-    DrawText("Stay curious!", 120, 690, 26, Color{89, 144, 104, 255});
-    DrawText("School is Cool!", 700, 690, 26, Color{89, 144, 104, 255});
+    DrawText("A+ vibes only", rightTextX, 28, 28, Color{89, 144, 104, 255});
+    DrawText("Stay curious!", marginX + 14, bottomY, 26, Color{89, 144, 104, 255});
+    DrawText("School is Cool!", rightTextX - 10, bottomY, 26, Color{89, 144, 104, 255});
 
 }
 
@@ -476,16 +489,20 @@ void Game::Draw() const
 
     if (abilityMode_ && state_ == GameState::InWeek)
     {
+        const Rectangle modal{(config::kScreenWidth - 960.0f) * 0.5f, 170.0f, 960.0f, 190.0f};
         DrawRectangle(0, 0, config::kScreenWidth, config::kScreenHeight, Color{8, 12, 18, 136});
-        DrawRectangleRounded(Rectangle{100, 120, 760, 160}, 0.08f, 8, Color{23, 34, 47, 245});
-        DrawText("Ability Mode", 120, 150, 34, Color{180, 235, 199, 255});
+        DrawRectangleRounded(modal, 0.08f, 8, Color{23, 34, 47, 245});
+        DrawText("Ability Mode", static_cast<int>(modal.x + 28.0f), static_cast<int>(modal.y + 28.0f), 38,
+                 Color{180, 235, 199, 255});
         if (unlockedAbilities_ == 0)
         {
-            DrawText("No abilities unlocked yet. Clear this week to earn Whisper.", 120, 194, 22, RAYWHITE);
+            DrawText("No abilities unlocked yet. Clear this week to earn Whisper.", static_cast<int>(modal.x + 28.0f),
+                     static_cast<int>(modal.y + 86.0f), 24, RAYWHITE);
         }
         else
         {
-            DrawText("1/2/3 select, ENTER cast, 4 distraction, ESC/TAB cancel", 120, 194, 22, RAYWHITE);
+            DrawText("1/2/3 select, ENTER cast, 4 distraction, ESC/TAB cancel", static_cast<int>(modal.x + 28.0f),
+                     static_cast<int>(modal.y + 86.0f), 24, RAYWHITE);
         }
     }
 
@@ -517,35 +534,44 @@ void Game::Draw() const
     }
     else if (state_ == GameState::WeekUpgrade)
     {
+        const float cardWidth = 260.0f;
+        const float cardHeight = 250.0f;
+        const float gap = 34.0f;
+        const float cardsStartX = (config::kScreenWidth - (cardWidth * 3.0f + gap * 2.0f)) * 0.5f;
+        const int titleY = 118;
+        const int subtitleY = 168;
+        const int unlockY = 206;
+        const std::string weekClearTitle = TextFormat("Week %d Cleared", weekIndex_);
         DrawRectangle(0, 0, config::kScreenWidth, config::kScreenHeight, Color{8, 12, 18, 170});
-        DrawText(TextFormat("Week %d Cleared", weekIndex_), 282, 86, 40, RAYWHITE);
-        DrawText("Pick 1 of 3 run upgrades", 318, 126, 24, Color{179, 202, 219, 255});
+        DrawText(weekClearTitle.c_str(), config::kScreenWidth / 2 - MeasureText(weekClearTitle.c_str(), 44) / 2, titleY, 44, RAYWHITE);
+        DrawText("Pick 1 of 3 run upgrades",
+                 config::kScreenWidth / 2 - MeasureText("Pick 1 of 3 run upgrades", 28) / 2, subtitleY, 28, Color{179, 202, 219, 255});
         if (lastUnlockedAbilityIndex_ >= 0)
         {
-            DrawText(TextFormat("New ability unlocked: %s", AbilityName(AbilityByIndex(lastUnlockedAbilityIndex_))), 278, 156,
-                     22, Color{180, 235, 199, 255});
+            const std::string unlockText = TextFormat("New ability unlocked: %s", AbilityName(AbilityByIndex(lastUnlockedAbilityIndex_)));
+            DrawText(unlockText.c_str(), config::kScreenWidth / 2 - MeasureText(unlockText.c_str(), 24) / 2, unlockY, 24,
+                     Color{180, 235, 199, 255});
         }
 
         for (int i = 0; i < 3; ++i)
         {
-            const float x = 110.0f + static_cast<float>(i) * 245.0f;
-            const Rectangle card{x, 195.0f, 205.0f, 220.0f};
+            const float x = cardsStartX + static_cast<float>(i) * (cardWidth + gap);
+            const Rectangle card{x, 286.0f, cardWidth, cardHeight};
             const UpgradeType upgrade = offeredUpgrades_[i];
             const Color accent = UpgradeColor(upgrade);
             DrawRectangleRounded(card, 0.08f, 8, Color{24, 33, 44, 245});
             DrawRectangleRoundedLinesEx(card, 0.08f, 8, 3.0f, accent);
-            DrawText(TextFormat("%d", i + 1), static_cast<int>(x + 16.0f), 214, 28, accent);
-            DrawText(UpgradeName(upgrade), static_cast<int>(x + 16.0f), 258, 28, RAYWHITE);
-            DrawText(UpgradeDescription(upgrade), static_cast<int>(x + 16.0f), 302, 20, accent);
+            DrawText(TextFormat("%d", i + 1), static_cast<int>(x + 18.0f), 310, 30, accent);
+            DrawText(UpgradeName(upgrade), static_cast<int>(x + 18.0f), 360, 30, RAYWHITE);
+            DrawText(UpgradeDescription(upgrade), static_cast<int>(x + 18.0f), 414, 22, accent);
         }
 
-        DrawText("Press 1, 2, or 3 to continue to the next week", 224, 458, 22, RAYWHITE);
+        DrawText("Press 1, 2, or 3 to continue to the next week",
+                 config::kScreenWidth / 2 - MeasureText("Press 1, 2, or 3 to continue to the next week", 24) / 2, 592, 24, RAYWHITE);
     }
     else if (state_ == GameState::RunFail)
     {
-        renderui::DrawCenteredMessage("Caught. Run Over",
-                                      TextFormat("%s  |  Score: %d  |  ENTER: Main Menu", failReason_.c_str(), ComputeScore()),
-                                      Color{252, 145, 120, 255});
+        DrawRunFailScreen();
     }
     else if (state_ == GameState::RunSuccess)
     {
@@ -564,16 +590,26 @@ void Game::DrawMainMenu() const
 {
     DrawPosterBackground();
 
-    const Rectangle poster{170.0f, 48.0f, 620.0f, 614.0f};
+    const Rectangle poster{(config::kScreenWidth - 760.0f) * 0.5f, 72.0f, 760.0f, config::kScreenHeight - 180.0f};
+    const int titleSize = 46;
+    const int subtitleSize = 26;
+    const int sectionSize = 28;
+    const char* title = "Realistic Cheating Simulator";
+    const char* subtitle = "Reach for the stars. Borrow the answers.";
+    const char* section = "Choose your inspirational poster:";
+    const int titleX = static_cast<int>(poster.x + poster.width * 0.5f - MeasureText(title, titleSize) * 0.5f);
+    const int subtitleX = static_cast<int>(poster.x + poster.width * 0.5f - MeasureText(subtitle, subtitleSize) * 0.5f);
+    const int sectionX = static_cast<int>(poster.x + poster.width * 0.5f - MeasureText(section, sectionSize) * 0.5f);
+
     DrawRectangleRounded(Rectangle{poster.x + 10.0f, poster.y + 12.0f, poster.width, poster.height}, 0.04f, 8,
                          Color{104, 84, 62, 95});
     DrawRectangleRounded(poster, 0.04f, 8, Color{255, 252, 239, 255});
     DrawRectangleRoundedLinesEx(poster, 0.04f, 8, 4.0f, Color{111, 139, 189, 255});
 
-    DrawText("Realistic Cheating Simulator", 185, 84, 28, Color{255, 255, 255, 255});
-    DrawText("Realistic Cheating Simulator", 180, 78, 28, Color{212, 88, 88, 255});
-    DrawText("Reach for the stars. Borrow the answers.", 242, 126, 22, Color{94, 129, 95, 255});
-    DrawText("Choose your inspirational poster:", 270, 182, 24, Color{63, 108, 162, 255});
+    DrawText(title, titleX + 6, static_cast<int>(poster.y + 28.0f), titleSize, Color{255, 255, 255, 255});
+    DrawText(title, titleX, static_cast<int>(poster.y + 20.0f), titleSize, Color{212, 88, 88, 255});
+    DrawText(subtitle, subtitleX, static_cast<int>(poster.y + 86.0f), subtitleSize, Color{94, 129, 95, 255});
+    DrawText(section, sectionX, static_cast<int>(poster.y + 144.0f), sectionSize, Color{63, 108, 162, 255});
 
     const Vector2 mouse = GetMousePosition();
     DrawPosterButton(MenuButtonRect(0), "START", "Begin your academic adventure", ButtonFillColor(0), ButtonOutlineColor(0),
@@ -583,55 +619,99 @@ void Game::DrawMainMenu() const
     DrawPosterButton(MenuButtonRect(2), "EXIT", "Retreat with dignity and snacks", ButtonFillColor(2), ButtonOutlineColor(2),
                      CheckCollisionPointRec(mouse, MenuButtonRect(2)));
 
+    const char* hint = "Click a button, or use ENTER, H, and ESC.";
+    DrawText(hint, static_cast<int>(poster.x + poster.width * 0.5f - MeasureText(hint, 22) * 0.5f), config::kScreenHeight - 110, 22,
+             Color{92, 92, 92, 255});
 }
 
 void Game::DrawHelpScreen() const
 {
     DrawPosterBackground();
 
-    DrawText("How To Be A Totally Normal Student", 174, 34, 36, Color{255, 255, 255, 255});
-    DrawText("How To Be A Totally Normal Student", 168, 28, 36, Color{69, 124, 178, 255});
+    const char* title = "How To Be A Totally Normal Student";
+    const int titleX = config::kScreenWidth / 2 - MeasureText(title, 42) / 2;
+    const float leftX = 92.0f;
+    const float gapX = 44.0f;
+    const float colWidth = (config::kScreenWidth - leftX * 2.0f - gapX);
+    const float leftWidth = colWidth * 0.5f;
+    const float rightX = leftX + leftWidth + gapX;
 
-    const Rectangle playCard{84.0f, 104.0f, 368.0f, 168.0f};
-    const Rectangle progressCard{500.0f, 104.0f, 376.0f, 168.0f};
-    const Rectangle abilityCard{84.0f, 294.0f, 368.0f, 268.0f};
-    const Rectangle studentCard{500.0f, 294.0f, 376.0f, 128.0f};
-    const Rectangle resultCard{500.0f, 440.0f, 376.0f, 122.0f};
+    DrawText(title, titleX + 6, 46, 42, Color{255, 255, 255, 255});
+    DrawText(title, titleX, 38, 42, Color{69, 124, 178, 255});
+
+    const Rectangle playCard{leftX, 122.0f, leftWidth, 188.0f};
+    const Rectangle progressCard{rightX, 122.0f, leftWidth, 188.0f};
+    const Rectangle abilityCard{leftX, 336.0f, leftWidth, 320.0f};
+    const Rectangle studentCard{rightX, 336.0f, leftWidth, 154.0f};
+    const Rectangle resultCard{rightX, 520.0f, leftWidth, 136.0f};
 
     DrawSectionCard(playCard, "How To Play", Color{255, 251, 239, 255}, Color{88, 150, 103, 255});
-    DrawBullet(104, 146, Color{88, 150, 103, 255}, "W A S D moves one tile at a time.");
-    DrawBullet(104, 176, Color{88, 150, 103, 255}, "Hold SPACE near a student to peek answers.");
-    DrawBullet(104, 206, Color{88, 150, 103, 255}, "Stand on SUBMIT with 100 progress and hold SPACE.");
-    DrawBullet(104, 236, Color{88, 150, 103, 255}, "TAB opens the ability menu and pauses the action.");
+    DrawBullet(static_cast<int>(playCard.x + 18.0f), 166, Color{88, 150, 103, 255}, "W A S D moves one tile at a time.");
+    DrawBullet(static_cast<int>(playCard.x + 18.0f), 200, Color{88, 150, 103, 255}, "Hold SPACE near a student to peek answers.");
+    DrawBullet(static_cast<int>(playCard.x + 18.0f), 234, Color{88, 150, 103, 255}, "Stand on SUBMIT with 100 progress and hold SPACE.");
+    DrawBullet(static_cast<int>(playCard.x + 18.0f), 268, Color{88, 150, 103, 255}, "TAB opens the ability menu and pauses the action.");
 
     DrawSectionCard(progressCard, "How You Progress", Color{250, 249, 255, 255}, Color{72, 129, 198, 255});
-    DrawBullet(520, 146, Color{72, 129, 198, 255}, "Each run lasts 10 harder weeks.");
-    DrawBullet(520, 176, Color{72, 129, 198, 255}, "After every clear, pick 1 of 3 upgrades.");
-    DrawBullet(520, 206, Color{72, 129, 198, 255}, "Week 1 starts with no abilities.");
-    DrawBullet(520, 236, Color{72, 129, 198, 255}, "Clearing Weeks 1-3 unlocks Whisper, Fake Cough, then Mirror.");
+    DrawBullet(static_cast<int>(progressCard.x + 18.0f), 166, Color{72, 129, 198, 255}, "Each run lasts 10 harder weeks.");
+    DrawBullet(static_cast<int>(progressCard.x + 18.0f), 200, Color{72, 129, 198, 255}, "After every clear, pick 1 of 3 upgrades.");
+    DrawBullet(static_cast<int>(progressCard.x + 18.0f), 234, Color{72, 129, 198, 255}, "Week 1 starts with no abilities.");
+    DrawBullet(static_cast<int>(progressCard.x + 18.0f), 268, Color{72, 129, 198, 255},
+               "Clearing Weeks 1-3 unlocks Whisper, Fake Cough, then Mirror.");
 
     DrawSectionCard(abilityCard, "Abilities And Tricks", Color{255, 247, 233, 255}, Color{213, 128, 68, 255});
-    DrawBullet(104, 336, Color{213, 128, 68, 255}, "Whisper: grab a nearby answer instantly.");
-    DrawBullet(104, 366, Color{213, 128, 68, 255}, "Fake Cough: lure the teacher to your tile if unseen.");
-    DrawBullet(104, 396, Color{213, 128, 68, 255}, "Mirror: for 5 seconds, peek through one blocker nearby.");
-    DrawBullet(104, 426, Color{213, 128, 68, 255}, "Distraction: spend a weekly charge to turn the teacher away.");
-    DrawBullet(104, 456, Color{213, 128, 68, 255}, "Abilities have cooldowns, so use them like cartoon gadgets.");
-    DrawBullet(104, 486, Color{213, 128, 68, 255}, "Helpful students make Whisper safer than snitchy ones.");
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 378, Color{213, 128, 68, 255}, "Whisper: grab a nearby answer instantly.");
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 416, Color{213, 128, 68, 255}, "Fake Cough: lure the teacher to your tile if unseen.");
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 454, Color{213, 128, 68, 255},
+               "Mirror: for 5 seconds, peek through one blocker nearby.");
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 492, Color{213, 128, 68, 255},
+               "Distraction: spend a weekly charge to turn the teacher away.");
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 530, Color{213, 128, 68, 255},
+               "Abilities have cooldowns, so use them like cartoon gadgets.");
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 568, Color{213, 128, 68, 255},
+               "Helpful students make Whisper safer than snitchy ones.");
 
     DrawSectionCard(studentCard, "Student Types", Color{241, 252, 243, 255}, Color{98, 161, 114, 255});
-    DrawBullet(520, 336, Color{98, 210, 116, 255}, "Helpful: best progress, lowest Whisper suspicion.");
-    DrawBullet(520, 366, Color{96, 166, 243, 255}, "Normal: balanced risk and reward.");
-    DrawBullet(520, 396, Color{236, 121, 96, 255}, "Snitchy: weaker gains and much riskier to copy.");
+    DrawBullet(static_cast<int>(studentCard.x + 18.0f), 380, Color{98, 210, 116, 255}, "Helpful: best progress, lowest Whisper suspicion.");
+    DrawBullet(static_cast<int>(studentCard.x + 18.0f), 418, Color{96, 166, 243, 255}, "Normal: balanced risk and reward.");
+    DrawBullet(static_cast<int>(studentCard.x + 18.0f), 456, Color{236, 121, 96, 255}, "Snitchy: weaker gains and much riskier to copy.");
 
     DrawSectionCard(resultCard, "How To Win Or Lose", Color{255, 241, 241, 255}, Color{215, 95, 95, 255});
-    DrawBullet(520, 482, Color{89, 170, 108, 255}, "Win: clear all 10 weeks without getting caught.");
-    DrawBullet(520, 512, Color{215, 95, 95, 255}, "Lose: cheat in the teacher's view for 0.2 seconds.");
-    DrawBullet(520, 542, Color{215, 95, 95, 255}, "Lose instantly if the teacher spots you point-blank.");
+    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 564, Color{89, 170, 108, 255}, "Win: clear all 10 weeks without getting caught.");
+    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 602, Color{215, 95, 95, 255}, "Lose: cheat in the teacher's view for 0.2 seconds.");
+    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 640, Color{215, 95, 95, 255}, "Lose instantly if the teacher spots you point-blank.");
 
     const Rectangle backRect = HelpBackButtonRect();
     DrawPosterButton(backRect, "BACK", "Return to the poster wall", Color{255, 237, 153, 255}, Color{164, 129, 37, 255},
                      CheckCollisionPointRec(GetMousePosition(), backRect));
-    DrawText("ESC, BACKSPACE, or ENTER also go back.", 80, 650, 20, Color{92, 92, 92, 255});
+    DrawText("ESC, BACKSPACE, or ENTER also go back.", 92, config::kScreenHeight - 84, 22, Color{92, 92, 92, 255});
+}
+
+void Game::DrawRunFailScreen() const
+{
+    DrawRectangle(0, 0, config::kScreenWidth, config::kScreenHeight, Color{14, 18, 26, 235});
+
+    const Rectangle panel{(config::kScreenWidth - 860.0f) * 0.5f, 138.0f, 860.0f, 520.0f};
+    DrawRectangleRounded(Rectangle{panel.x + 10.0f, panel.y + 12.0f, panel.width, panel.height}, 0.06f, 8, Color{83, 47, 37, 120});
+    DrawRectangleRounded(panel, 0.06f, 8, Color{42, 29, 36, 255});
+    DrawRectangleRoundedLinesEx(panel, 0.06f, 8, 4.0f, Color{224, 117, 88, 255});
+
+    const char* title = "Caught. Run Over";
+    const std::string reasonText = failReason_.empty() ? std::string{"The teacher was not fooled."} : failReason_;
+    const std::string scoreText = TextFormat("Score: %d", ComputeScore());
+    const char* hintText = "Restart jumps back to Week 1. Main Menu returns to the poster screen.";
+    const Vector2 mouse = GetMousePosition();
+
+    DrawText(title, config::kScreenWidth / 2 - MeasureText(title, 48) / 2, 192, 48, Color{255, 160, 132, 255});
+    DrawText(reasonText.c_str(), config::kScreenWidth / 2 - MeasureText(reasonText.c_str(), 28) / 2, 284, 28, RAYWHITE);
+    DrawText(scoreText.c_str(), config::kScreenWidth / 2 - MeasureText(scoreText.c_str(), 30) / 2, 332, 30, Color{255, 225, 152, 255});
+    DrawText(hintText, config::kScreenWidth / 2 - MeasureText(hintText, 22) / 2, 394, 22, Color{197, 206, 216, 255});
+
+    DrawPosterButton(RunFailButtonRect(0), "RESTART", "Jump back to Week 1", Color{146, 229, 170, 255}, Color{63, 127, 73, 255},
+                     CheckCollisionPointRec(mouse, RunFailButtonRect(0)));
+    DrawPosterButton(RunFailButtonRect(1), "MAIN MENU", "Return to the poster wall", Color{125, 206, 255, 255},
+                     Color{54, 104, 166, 255}, CheckCollisionPointRec(mouse, RunFailButtonRect(1)));
+
+    
 }
 
 void Game::StartNewRun()
@@ -864,6 +944,35 @@ void Game::UpdateWeekUpgradeInput()
 
 void Game::UpdateEndScreenInput()
 {
+    if (state_ == GameState::RunFail)
+    {
+        const Vector2 mouse = GetMousePosition();
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+        {
+            if (CheckCollisionPointRec(mouse, RunFailButtonRect(0)))
+            {
+                StartNewRun();
+                return;
+            }
+            if (CheckCollisionPointRec(mouse, RunFailButtonRect(1)))
+            {
+                state_ = GameState::MainMenu;
+                return;
+            }
+        }
+
+        if (IsKeyPressed(KEY_R))
+        {
+            StartNewRun();
+            return;
+        }
+        if (IsKeyPressed(KEY_M) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE))
+        {
+            state_ = GameState::MainMenu;
+        }
+        return;
+    }
+
     if (IsKeyPressed(KEY_ENTER))
     {
         state_ = GameState::MainMenu;

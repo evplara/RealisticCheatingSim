@@ -6,21 +6,21 @@
 
 namespace config
 {
-constexpr int kScreenWidth = 960;
-constexpr int kScreenHeight = 720;
+constexpr int kScreenWidth = 1280;
+constexpr int kScreenHeight = 960;
 
 constexpr int kGridW = 16;
 constexpr int kGridH = 16;
-constexpr int kTileSize = 40;
+constexpr int kTileSize = 54;
 
 constexpr int kGridPixelW = kGridW * kTileSize;
 constexpr int kGridPixelH = kGridH * kTileSize;
 
 constexpr int kGridOriginX = 24;
-constexpr int kGridOriginY = 40;
+constexpr int kGridOriginY = 48;
 
 constexpr int kHudX = kGridOriginX + kGridPixelW + 16;
-constexpr int kHudY = 20;
+constexpr int kHudY = 32;
 constexpr int kHudWidth = kScreenWidth - kHudX - 16;
 
 constexpr float kPlayerMoveSec = 0.12f;
