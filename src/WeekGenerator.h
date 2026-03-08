@@ -10,5 +10,7 @@ public:
     WeekData Generate(int weekIndex, uint32_t seed);
 
 private:
-    int lastTemplateIndex_ = -1;
+    int lastHybridTemplateIndex_ = -1;
+    int lastClassicTemplateIndex_ = -1;
+    int lastLayoutStyle_ = -1;
 };

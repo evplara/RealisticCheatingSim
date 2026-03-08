@@ -139,7 +139,7 @@ Rectangle MenuButtonRect(int index)
 
 Rectangle HelpBackButtonRect()
 {
-    return Rectangle{static_cast<float>(config::kScreenWidth - 300), static_cast<float>(config::kScreenHeight - 104), 230.0f,
+    return Rectangle{static_cast<float>(config::kScreenWidth - 300), static_cast<float>(config::kScreenHeight - 84), 230.0f,
                      60.0f};
 }
 
@@ -502,7 +502,7 @@ void Game::Draw() const
         }
         else
         {
-            DrawText("1/2/3 select, ENTER cast, 4 distraction, ESC/TAB cancel", static_cast<int>(modal.x + 28.0f),
+            DrawText("1/2/3 select, ENTER cast, 4 distraction, TAB cancel", static_cast<int>(modal.x + 28.0f),
                      static_cast<int>(modal.y + 86.0f), 24, RAYWHITE);
         }
     }
@@ -617,9 +617,6 @@ void Game::DrawMainMenu() const
     DrawPosterButton(MenuButtonRect(2), "EXIT", "Retreat with dignity and snacks", ButtonFillColor(2), ButtonOutlineColor(2),
                      CheckCollisionPointRec(mouse, MenuButtonRect(2)));
 
-    const char* hint = "Click a button, or use ENTER, H, and ESC.";
-    DrawText(hint, static_cast<int>(poster.x + poster.width * 0.5f - MeasureText(hint, 22) * 0.5f), config::kScreenHeight - 110, 22,
-             Color{92, 92, 92, 255});
 }
 
 void Game::DrawHelpScreen() const
@@ -642,6 +639,7 @@ void Game::DrawHelpScreen() const
     const Rectangle abilityCard{leftX, 370.0f, leftWidth, 320.0f};
     const Rectangle studentCard{rightX, 370.0f, leftWidth, 154.0f};
     const Rectangle resultCard{rightX, 554.0f, leftWidth, 136.0f};
+    const Rectangle resultCard2{rightX, 554.0f, leftWidth, 150.0f};
 
     DrawSectionCard(playCard, "How To Play", Color{255, 251, 239, 255}, Color{88, 150, 103, 255});
     DrawBullet(static_cast<int>(playCard.x + 18.0f), 166, Color{88, 150, 103, 255}, "W A S D moves one tile at a time.");
@@ -651,10 +649,10 @@ void Game::DrawHelpScreen() const
     DrawBullet(static_cast<int>(playCard.x + 18.0f), 302, Color{88, 150, 103, 255}, "TAB opens the ability menu and pauses the action.");
 
     DrawSectionCard(progressCard, "How You Progress", Color{250, 249, 255, 255}, Color{72, 129, 198, 255});
-    DrawBullet(static_cast<int>(progressCard.x + 18.0f), 166, Color{72, 129, 198, 255}, "Each run lasts 10 harder weeks.");
-    DrawBullet(static_cast<int>(progressCard.x + 18.0f), 200, Color{72, 129, 198, 255}, "Later weeks need more peeks: gain drops and more students appear.");
+    DrawBullet(static_cast<int>(progressCard.x + 18.0f), 166, Color{72, 129, 198, 255}, "Each run lasts 10 progressively harder weeks.");
+    DrawBullet(static_cast<int>(progressCard.x + 18.0f), 200, Color{72, 129, 198, 255}, "Later weeks need more peeks and more students appear.");
     DrawBullet(static_cast<int>(progressCard.x + 18.0f), 234, Color{72, 129, 198, 255},
-               "After every clear, draft 1 of 3 random rewards.");
+               "After each week, pick one random upgrade.");
     DrawBullet(static_cast<int>(progressCard.x + 18.0f), 268, Color{72, 129, 198, 255},
                "The pool mixes 3 stat boosts with 3 ability unlocks.");
 
@@ -664,26 +662,25 @@ void Game::DrawHelpScreen() const
     DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 488, Color{213, 128, 68, 255},
                "Mirror: for 5 seconds, peek through one blocker nearby.");
     DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 526, Color{213, 128, 68, 255},
-               "Distraction: spend a weekly charge to turn the teacher away.");
+               "Distraction: spend a charge to turn the teacher away.");
     DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 564, Color{213, 128, 68, 255},
-               "Abilities have cooldowns, so use them like cartoon gadgets.");
+               "Abilities have cooldowns, so use them wisely.");
     DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 602, Color{213, 128, 68, 255},
                "Helpful students make Whisper safer than snitchy ones.");
 
     DrawSectionCard(studentCard, "Student Types", Color{241, 252, 243, 255}, Color{98, 161, 114, 255});
-    DrawBullet(static_cast<int>(studentCard.x + 18.0f), 414, Color{98, 210, 116, 255}, "Helpful: best progress, lowest Whisper suspicion.");
+    DrawBullet(static_cast<int>(studentCard.x + 18.0f), 414, Color{98, 210, 116, 255}, "Helpful: best progress, lowest suspicion.");
     DrawBullet(static_cast<int>(studentCard.x + 18.0f), 452, Color{96, 166, 243, 255}, "Normal: balanced risk and reward.");
-    DrawBullet(static_cast<int>(studentCard.x + 18.0f), 490, Color{236, 121, 96, 255}, "Snitchy: weaker gains and much riskier to copy.");
+    DrawBullet(static_cast<int>(studentCard.x + 18.0f), 490, Color{236, 121, 96, 255}, "Snitches: weaker gains and much riskier to copy.");
 
-    DrawSectionCard(resultCard, "How To Win Or Lose", Color{255, 241, 241, 255}, Color{215, 95, 95, 255});
-    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 598, Color{89, 170, 108, 255}, "Win: clear all 10 weeks without getting caught.");
-    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 636, Color{215, 95, 95, 255}, "Lose: cheat in the teacher's view for 0.2 seconds.");
-    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 674, Color{215, 95, 95, 255}, "Lose instantly if the teacher spots you point-blank.");
+    DrawSectionCard(resultCard2, "How To Win/Lose", Color{255, 241, 241, 255}, Color{215, 95, 95, 255});
+    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 598, Color{89, 170, 108, 255}, "Win: Clear all 10 weeks without getting caught.");
+    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 636, Color{215, 95, 95, 255}, "Lose: Cheat in the teacher's view for 0.2 seconds.");
+    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 674, Color{215, 95, 95, 255}, "Instantly if the teacher spots you from one tile away.");
 
     const Rectangle backRect = HelpBackButtonRect();
-    DrawPosterButton(backRect, "BACK", "Return to the poster wall", Color{255, 237, 153, 255}, Color{164, 129, 37, 255},
+    DrawPosterButton(backRect, "BACK", "", Color{255, 237, 153, 255}, Color{164, 129, 37, 255},
                      CheckCollisionPointRec(GetMousePosition(), backRect));
-    DrawText("ESC, BACKSPACE, or ENTER also go back.", 92, config::kScreenHeight - 84, 22, Color{92, 92, 92, 255});
 }
 
 void Game::DrawRunFailScreen() const
@@ -1528,6 +1525,12 @@ void Game::AddSuspicion(float amount)
     if (amount > 0.0f)
     {
         lastSuspiciousPos_ = player_.pos;
+    }
+
+    if (before < config::kSuspicionMax && suspicion_ >= config::kSuspicionMax)
+    {
+        EnterFail("Suspicion hit 100.");
+        return;
     }
 
     if (before < config::kSuspicionThreshold90 && suspicion_ >= config::kSuspicionThreshold90 &&
