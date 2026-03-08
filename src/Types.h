@@ -6,6 +6,7 @@
 enum class GameState
 {
     MainMenu,
+    HelpMenu,
     WeekIntro,
     InWeek,
     WeekClear,

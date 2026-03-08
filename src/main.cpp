@@ -5,7 +5,7 @@
 
 int main()
 {
-    InitWindow(config::kScreenWidth, config::kScreenHeight, "School 7DRL");
+    InitWindow(config::kScreenWidth, config::kScreenHeight, "Realistic Cheating Sim");
     SetTargetFPS(60);
 
     Game game{};

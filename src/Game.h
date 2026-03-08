@@ -25,6 +25,7 @@ private:
     void EnterFail(const std::string& reason);
 
     void UpdateMenuInput();
+    void UpdateHelpInput();
     void UpdateWeekIntroInput();
     void UpdateWeekClearInput();
     void UpdateWeekUpgradeInput();
@@ -72,6 +73,8 @@ private:
     void PlayPeekSfx();
     void PlayAbilitySfx();
     void PlayCaughtSfx();
+    void DrawMainMenu() const;
+    void DrawHelpScreen() const;
 
 private:
     struct RuntimeSound

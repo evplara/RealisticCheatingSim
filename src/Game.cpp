@@ -126,6 +126,127 @@ int AbilityUnlockCountForWeeksCleared(int weeksCleared)
 {
     return std::max(0, std::min(weeksCleared, kAbilityCount));
 }
+
+Rectangle MenuButtonRect(int index)
+{
+    constexpr float buttonWidth = 332.0f;
+    constexpr float buttonHeight = 82.0f;
+    constexpr float startY = 258.0f;
+    constexpr float gapY = 26.0f;
+    return Rectangle{(config::kScreenWidth - buttonWidth) * 0.5f,
+                     startY + static_cast<float>(index) * (buttonHeight + gapY),
+                     buttonWidth,
+                     buttonHeight};
+}
+
+Rectangle HelpBackButtonRect()
+{
+    return Rectangle{static_cast<float>(config::kScreenWidth - 250), static_cast<float>(config::kScreenHeight - 96), 190.0f,
+                     52.0f};
+}
+
+Color ButtonFillColor(int index)
+{
+    switch (index)
+    {
+        case 0: return Color{140, 228, 161, 255};
+        case 1: return Color{121, 205, 255, 255};
+        case 2: return Color{255, 173, 129, 255};
+        default: return RAYWHITE;
+    }
+}
+
+Color ButtonOutlineColor(int index)
+{
+    switch (index)
+    {
+        case 0: return Color{59, 126, 72, 255};
+        case 1: return Color{52, 105, 160, 255};
+        case 2: return Color{170, 91, 54, 255};
+        default: return DARKGRAY;
+    }
+}
+
+void DrawPosterBackground()
+{
+    ClearBackground(Color{249, 241, 191, 255});
+
+    for (int y = 36; y < config::kScreenHeight; y += 34)
+    {
+        DrawLine(0, y, config::kScreenWidth, y, Color{191, 221, 255, 255});
+    }
+
+    DrawLine(92, 0, 92, config::kScreenHeight, Color{244, 132, 132, 255});
+    DrawCircle(106, 92, 42.0f, Color{255, 215, 112, 255});
+    DrawCircle(92, 84, 6.0f, BLACK);
+    DrawCircle(112, 84, 6.0f, BLACK);
+    DrawCircleLines(106, 92, 42.0f, Color{208, 144, 54, 255});
+DrawCircleSectorLines(
+    Vector2{106.0f, 92.0f},   // center moved left
+    36.0f,                     // radius
+    0.0f,
+    180.0f,
+    32,
+    Color{118, 82, 52, 255}
+);
+    DrawCircle(860, 110, 52.0f, Color{255, 242, 175, 255});
+    DrawCircle(844, 102, 6.0f, BLACK);
+    DrawCircle(876, 102, 6.0f, BLACK);
+    DrawCircleSectorLines(
+        Vector2{860.0f, 128.0f},  // center
+        18.0f,                    // radius
+        0.0f,                     // start angle
+        180.0f,                   // end angle
+        32,                       // segments
+        Color{118, 82, 52, 255}
+    );
+
+    DrawCircle(60, 680, 32.0f, Color{152, 225, 255, 255});
+    DrawCircleLines(60, 680, 32.0f, Color{62, 127, 172, 255});
+    DrawText("WOW!", 35, 670, 22, Color{62, 127, 172, 255});
+
+    DrawText("A+ vibes only", 600, 15, 28, Color{89, 144, 104, 255});
+    DrawText("Stay curious!", 120, 690, 26, Color{89, 144, 104, 255});
+    DrawText("School is Cool!", 700, 690, 26, Color{89, 144, 104, 255});
+
+}
+
+void DrawPosterButton(const Rectangle& rect, const char* label, const char* subtitle, Color fill, Color outline, bool hovered)
+{
+    const Rectangle shadow{rect.x + 8.0f, rect.y + 8.0f, rect.width, rect.height};
+    const Color shadowColor = hovered ? Color{104, 84, 62, 150} : Color{104, 84, 62, 110};
+    const Color panelColor = hovered ? Color{255, 255, 255, 255} : fill;
+
+    DrawRectangleRounded(shadow, 0.24f, 8, shadowColor);
+    DrawRectangleRounded(rect, 0.24f, 8, panelColor);
+    DrawRectangleRoundedLinesEx(rect, 0.24f, 8, 4.0f, outline);
+
+    DrawCircle(static_cast<int>(rect.x + 34.0f), static_cast<int>(rect.y + rect.height * 0.5f), 12.0f, outline);
+    DrawCircle(static_cast<int>(rect.x + rect.width - 34.0f), static_cast<int>(rect.y + rect.height * 0.5f), 12.0f, outline);
+
+    const int titleSize = 34;
+    const int subtitleSize = 18;
+    const int titleWidth = MeasureText(label, titleSize);
+    const int subtitleWidth = MeasureText(subtitle, subtitleSize);
+    DrawText(label, static_cast<int>(rect.x + rect.width * 0.5f - titleWidth * 0.5f), static_cast<int>(rect.y + 13.0f), titleSize,
+             outline);
+    DrawText(subtitle, static_cast<int>(rect.x + rect.width * 0.5f - subtitleWidth * 0.5f), static_cast<int>(rect.y + 49.0f),
+             subtitleSize, Color{80, 76, 72, 255});
+}
+
+void DrawSectionCard(const Rectangle& rect, const char* title, Color fill, Color outline)
+{
+    DrawRectangleRounded(Rectangle{rect.x + 6.0f, rect.y + 6.0f, rect.width, rect.height}, 0.10f, 8, Color{104, 84, 62, 85});
+    DrawRectangleRounded(rect, 0.10f, 8, fill);
+    DrawRectangleRoundedLinesEx(rect, 0.10f, 8, 3.0f, outline);
+    DrawText(title, static_cast<int>(rect.x + 16.0f), static_cast<int>(rect.y + 12.0f), 26, outline);
+}
+
+void DrawBullet(int x, int y, Color color, const char* text)
+{
+    DrawCircle(x, y + 8, 5.0f, color);
+    DrawText(text, x + 16, y, 18, Color{62, 62, 62, 255});
+}
 } // namespace
 
 void Game::Init()
@@ -168,6 +289,9 @@ void Game::Update(float dt)
         case GameState::MainMenu:
             UpdateMenuInput();
             break;
+        case GameState::HelpMenu:
+            UpdateHelpInput();
+            break;
         case GameState::WeekIntro:
             weekMessageTimer_ += dt;
             UpdateWeekIntroInput();
@@ -196,10 +320,13 @@ void Game::Draw() const
 
     if (state_ == GameState::MainMenu)
     {
-        renderui::DrawCenteredMessage(
-            "School 7DRL",
-            "ENTER: Start Run    ESC: Quit    TAB: Ability Mode    F3: Debug Overlay",
-            Color{112, 226, 167, 255});
+        DrawMainMenu();
+        return;
+    }
+
+    if (state_ == GameState::HelpMenu)
+    {
+        DrawHelpScreen();
         return;
     }
 
@@ -433,6 +560,80 @@ bool Game::ShouldExit() const
     return shouldExit_;
 }
 
+void Game::DrawMainMenu() const
+{
+    DrawPosterBackground();
+
+    const Rectangle poster{170.0f, 48.0f, 620.0f, 614.0f};
+    DrawRectangleRounded(Rectangle{poster.x + 10.0f, poster.y + 12.0f, poster.width, poster.height}, 0.04f, 8,
+                         Color{104, 84, 62, 95});
+    DrawRectangleRounded(poster, 0.04f, 8, Color{255, 252, 239, 255});
+    DrawRectangleRoundedLinesEx(poster, 0.04f, 8, 4.0f, Color{111, 139, 189, 255});
+
+    DrawText("Realistic Cheating Simulator", 185, 84, 28, Color{255, 255, 255, 255});
+    DrawText("Realistic Cheating Simulator", 180, 78, 28, Color{212, 88, 88, 255});
+    DrawText("Reach for the stars. Borrow the answers.", 242, 126, 22, Color{94, 129, 95, 255});
+    DrawText("Choose your inspirational poster:", 270, 182, 24, Color{63, 108, 162, 255});
+
+    const Vector2 mouse = GetMousePosition();
+    DrawPosterButton(MenuButtonRect(0), "START", "Begin your academic adventure", ButtonFillColor(0), ButtonOutlineColor(0),
+                     CheckCollisionPointRec(mouse, MenuButtonRect(0)));
+    DrawPosterButton(MenuButtonRect(1), "HELP", "Learn the sneaky school rules", ButtonFillColor(1), ButtonOutlineColor(1),
+                     CheckCollisionPointRec(mouse, MenuButtonRect(1)));
+    DrawPosterButton(MenuButtonRect(2), "EXIT", "Retreat with dignity and snacks", ButtonFillColor(2), ButtonOutlineColor(2),
+                     CheckCollisionPointRec(mouse, MenuButtonRect(2)));
+
+}
+
+void Game::DrawHelpScreen() const
+{
+    DrawPosterBackground();
+
+    DrawText("How To Be A Totally Normal Student", 174, 34, 36, Color{255, 255, 255, 255});
+    DrawText("How To Be A Totally Normal Student", 168, 28, 36, Color{69, 124, 178, 255});
+
+    const Rectangle playCard{84.0f, 104.0f, 368.0f, 168.0f};
+    const Rectangle progressCard{500.0f, 104.0f, 376.0f, 168.0f};
+    const Rectangle abilityCard{84.0f, 294.0f, 368.0f, 268.0f};
+    const Rectangle studentCard{500.0f, 294.0f, 376.0f, 128.0f};
+    const Rectangle resultCard{500.0f, 440.0f, 376.0f, 122.0f};
+
+    DrawSectionCard(playCard, "How To Play", Color{255, 251, 239, 255}, Color{88, 150, 103, 255});
+    DrawBullet(104, 146, Color{88, 150, 103, 255}, "W A S D moves one tile at a time.");
+    DrawBullet(104, 176, Color{88, 150, 103, 255}, "Hold SPACE near a student to peek answers.");
+    DrawBullet(104, 206, Color{88, 150, 103, 255}, "Stand on SUBMIT with 100 progress and hold SPACE.");
+    DrawBullet(104, 236, Color{88, 150, 103, 255}, "TAB opens the ability menu and pauses the action.");
+
+    DrawSectionCard(progressCard, "How You Progress", Color{250, 249, 255, 255}, Color{72, 129, 198, 255});
+    DrawBullet(520, 146, Color{72, 129, 198, 255}, "Each run lasts 10 harder weeks.");
+    DrawBullet(520, 176, Color{72, 129, 198, 255}, "After every clear, pick 1 of 3 upgrades.");
+    DrawBullet(520, 206, Color{72, 129, 198, 255}, "Week 1 starts with no abilities.");
+    DrawBullet(520, 236, Color{72, 129, 198, 255}, "Clearing Weeks 1-3 unlocks Whisper, Fake Cough, then Mirror.");
+
+    DrawSectionCard(abilityCard, "Abilities And Tricks", Color{255, 247, 233, 255}, Color{213, 128, 68, 255});
+    DrawBullet(104, 336, Color{213, 128, 68, 255}, "Whisper: grab a nearby answer instantly.");
+    DrawBullet(104, 366, Color{213, 128, 68, 255}, "Fake Cough: lure the teacher to your tile if unseen.");
+    DrawBullet(104, 396, Color{213, 128, 68, 255}, "Mirror: for 5 seconds, peek through one blocker nearby.");
+    DrawBullet(104, 426, Color{213, 128, 68, 255}, "Distraction: spend a weekly charge to turn the teacher away.");
+    DrawBullet(104, 456, Color{213, 128, 68, 255}, "Abilities have cooldowns, so use them like cartoon gadgets.");
+    DrawBullet(104, 486, Color{213, 128, 68, 255}, "Helpful students make Whisper safer than snitchy ones.");
+
+    DrawSectionCard(studentCard, "Student Types", Color{241, 252, 243, 255}, Color{98, 161, 114, 255});
+    DrawBullet(520, 336, Color{98, 210, 116, 255}, "Helpful: best progress, lowest Whisper suspicion.");
+    DrawBullet(520, 366, Color{96, 166, 243, 255}, "Normal: balanced risk and reward.");
+    DrawBullet(520, 396, Color{236, 121, 96, 255}, "Snitchy: weaker gains and much riskier to copy.");
+
+    DrawSectionCard(resultCard, "How To Win Or Lose", Color{255, 241, 241, 255}, Color{215, 95, 95, 255});
+    DrawBullet(520, 482, Color{89, 170, 108, 255}, "Win: clear all 10 weeks without getting caught.");
+    DrawBullet(520, 512, Color{215, 95, 95, 255}, "Lose: cheat in the teacher's view for 0.2 seconds.");
+    DrawBullet(520, 542, Color{215, 95, 95, 255}, "Lose instantly if the teacher spots you point-blank.");
+
+    const Rectangle backRect = HelpBackButtonRect();
+    DrawPosterButton(backRect, "BACK", "Return to the poster wall", Color{255, 237, 153, 255}, Color{164, 129, 37, 255},
+                     CheckCollisionPointRec(GetMousePosition(), backRect));
+    DrawText("ESC, BACKSPACE, or ENTER also go back.", 80, 650, 20, Color{92, 92, 92, 255});
+}
+
 void Game::StartNewRun()
 {
     generator_ = WeekGenerator{};
@@ -576,13 +777,53 @@ void Game::EnterFail(const std::string& reason)
 
 void Game::UpdateMenuInput()
 {
-    if (IsKeyPressed(KEY_ENTER))
+    const Vector2 mouse = GetMousePosition();
+    const bool clicked = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+
+    if (clicked && CheckCollisionPointRec(mouse, MenuButtonRect(0)))
     {
         StartNewRun();
+        return;
     }
-    if (IsKeyPressed(KEY_ESCAPE))
+    if (clicked && CheckCollisionPointRec(mouse, MenuButtonRect(1)))
+    {
+        state_ = GameState::HelpMenu;
+        return;
+    }
+    if (clicked && CheckCollisionPointRec(mouse, MenuButtonRect(2)))
     {
         shouldExit_ = true;
+        return;
+    }
+
+    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_S))
+    {
+        StartNewRun();
+        return;
+    }
+    if (IsKeyPressed(KEY_H))
+    {
+        state_ = GameState::HelpMenu;
+        return;
+    }
+    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_X))
+    {
+        shouldExit_ = true;
+    }
+}
+
+void Game::UpdateHelpInput()
+{
+    const Vector2 mouse = GetMousePosition();
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(mouse, HelpBackButtonRect()))
+    {
+        state_ = GameState::MainMenu;
+        return;
+    }
+
+    if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_BACKSPACE) || IsKeyPressed(KEY_ENTER))
+    {
+        state_ = GameState::MainMenu;
     }
 }
 
