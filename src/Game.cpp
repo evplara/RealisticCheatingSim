@@ -490,7 +490,7 @@ void Game::Draw() const
 
     if (abilityMode_ && state_ == GameState::InWeek)
     {
-        const Rectangle modal{(config::kScreenWidth - 960.0f) * 0.5f, 170.0f, 960.0f, 190.0f};
+        const Rectangle modal{(config::kScreenWidth - 760.0f) * 0.5f - 110.0f, 170.0f, 760.0f, 190.0f};
         DrawRectangle(0, 0, config::kScreenWidth, config::kScreenHeight, Color{8, 12, 18, 136});
         DrawRectangleRounded(modal, 0.08f, 8, Color{23, 34, 47, 245});
         DrawText("Ability Mode", static_cast<int>(modal.x + 28.0f), static_cast<int>(modal.y + 28.0f), 38,

@@ -2,13 +2,6 @@
 
 Top-down classroom stealth roguelike prototype using Raylib.
 
-## Build
-
-```powershell
-mingw32-make
-.\game.exe
-```
-
 ## Controls
 
 - `Enter`: start run / continue screens
