@@ -1,4 +1,6 @@
 # Realistic Cheating Simulator
+Play on itch.io !!!
+https://koolaid77.itch.io/realistic-cheating-sim
 
 Top-down classroom stealth roguelike using Raylib.
 
