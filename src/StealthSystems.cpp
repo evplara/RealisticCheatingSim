@@ -51,7 +51,7 @@ TileType GetTile(const WeekData& week, GridPos pos)
 
 bool IsWalkable(TileType tile)
 {
-    return tile == TileType::Floor || tile == TileType::Submit;
+    return tile == TileType::Floor || tile == TileType::SpawnDesk || tile == TileType::Submit;
 }
 
 bool IsOpaque(TileType tile)

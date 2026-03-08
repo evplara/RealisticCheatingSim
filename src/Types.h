@@ -19,6 +19,7 @@ enum class TileType
 {
     Floor,
     Desk,
+    SpawnDesk,
     TeacherDesk,
     Submit,
     Wall

@@ -362,6 +362,7 @@ void Game::Draw() const
             {
                 case TileType::Floor: c = Color{54, 66, 78, 255}; break;
                 case TileType::Desk: c = Color{120, 95, 71, 255}; break;
+                case TileType::SpawnDesk: c = Color{106, 133, 82, 255}; break;
                 case TileType::TeacherDesk: c = Color{96, 74, 56, 255}; break;
                 case TileType::Submit: c = Color{63, 110, 164, 255}; break;
                 case TileType::Wall: c = Color{35, 43, 52, 255}; break;
@@ -399,6 +400,8 @@ void Game::Draw() const
     const Vector2 dir{std::cos(theta) * 16.0f, std::sin(theta) * 16.0f};
     DrawLineEx(teacherPos, Vector2{teacherPos.x + dir.x, teacherPos.y + dir.y}, 3.0f, Color{250, 220, 220, 255});
 
+    DrawText("HOME", config::kGridOriginX + week_.playerSpawn.x * config::kTileSize + 7,
+             config::kGridOriginY + week_.playerSpawn.y * config::kTileSize + 14, 12, Color{214, 236, 182, 255});
     DrawText("SUBMIT", config::kGridOriginX + week_.submitPos.x * config::kTileSize + 4,
              config::kGridOriginY + week_.submitPos.y * config::kTileSize + 10, 12, Color{219, 236, 255, 255});
 
@@ -639,46 +642,47 @@ void Game::DrawHelpScreen() const
     DrawText(title, titleX + 6, 46, 42, Color{255, 255, 255, 255});
     DrawText(title, titleX, 38, 42, Color{69, 124, 178, 255});
 
-    const Rectangle playCard{leftX, 122.0f, leftWidth, 188.0f};
-    const Rectangle progressCard{rightX, 122.0f, leftWidth, 188.0f};
-    const Rectangle abilityCard{leftX, 336.0f, leftWidth, 320.0f};
-    const Rectangle studentCard{rightX, 336.0f, leftWidth, 154.0f};
-    const Rectangle resultCard{rightX, 520.0f, leftWidth, 136.0f};
+    const Rectangle playCard{leftX, 122.0f, leftWidth, 222.0f};
+    const Rectangle progressCard{rightX, 122.0f, leftWidth, 222.0f};
+    const Rectangle abilityCard{leftX, 370.0f, leftWidth, 320.0f};
+    const Rectangle studentCard{rightX, 370.0f, leftWidth, 154.0f};
+    const Rectangle resultCard{rightX, 554.0f, leftWidth, 136.0f};
 
     DrawSectionCard(playCard, "How To Play", Color{255, 251, 239, 255}, Color{88, 150, 103, 255});
     DrawBullet(static_cast<int>(playCard.x + 18.0f), 166, Color{88, 150, 103, 255}, "W A S D moves one tile at a time.");
     DrawBullet(static_cast<int>(playCard.x + 18.0f), 200, Color{88, 150, 103, 255}, "Hold SPACE near a student to peek answers.");
-    DrawBullet(static_cast<int>(playCard.x + 18.0f), 234, Color{88, 150, 103, 255}, "Stand on SUBMIT with 100 progress and hold SPACE.");
-    DrawBullet(static_cast<int>(playCard.x + 18.0f), 268, Color{88, 150, 103, 255}, "TAB opens the ability menu and pauses the action.");
+    DrawBullet(static_cast<int>(playCard.x + 18.0f), 234, Color{88, 150, 103, 255}, "Return to your HOME desk to cool off suspicion.");
+    DrawBullet(static_cast<int>(playCard.x + 18.0f), 268, Color{88, 150, 103, 255}, "Stand on SUBMIT with 100 progress and hold SPACE.");
+    DrawBullet(static_cast<int>(playCard.x + 18.0f), 302, Color{88, 150, 103, 255}, "TAB opens the ability menu and pauses the action.");
 
     DrawSectionCard(progressCard, "How You Progress", Color{250, 249, 255, 255}, Color{72, 129, 198, 255});
     DrawBullet(static_cast<int>(progressCard.x + 18.0f), 166, Color{72, 129, 198, 255}, "Each run lasts 10 harder weeks.");
-    DrawBullet(static_cast<int>(progressCard.x + 18.0f), 200, Color{72, 129, 198, 255}, "After every clear, pick 1 of 3 upgrades.");
-    DrawBullet(static_cast<int>(progressCard.x + 18.0f), 234, Color{72, 129, 198, 255}, "Week 1 starts with no abilities.");
+    DrawBullet(static_cast<int>(progressCard.x + 18.0f), 200, Color{72, 129, 198, 255}, "Later weeks need more peeks: gain drops and more students appear.");
+    DrawBullet(static_cast<int>(progressCard.x + 18.0f), 234, Color{72, 129, 198, 255}, "After every clear, pick 1 of 3 upgrades.");
     DrawBullet(static_cast<int>(progressCard.x + 18.0f), 268, Color{72, 129, 198, 255},
                "Clearing Weeks 1-3 unlocks Whisper, Fake Cough, then Mirror.");
 
     DrawSectionCard(abilityCard, "Abilities And Tricks", Color{255, 247, 233, 255}, Color{213, 128, 68, 255});
-    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 378, Color{213, 128, 68, 255}, "Whisper: grab a nearby answer instantly.");
-    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 416, Color{213, 128, 68, 255}, "Fake Cough: lure the teacher to your tile if unseen.");
-    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 454, Color{213, 128, 68, 255},
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 412, Color{213, 128, 68, 255}, "Whisper: grab a nearby answer instantly.");
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 450, Color{213, 128, 68, 255}, "Fake Cough: lure the teacher to your tile if unseen.");
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 488, Color{213, 128, 68, 255},
                "Mirror: for 5 seconds, peek through one blocker nearby.");
-    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 492, Color{213, 128, 68, 255},
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 526, Color{213, 128, 68, 255},
                "Distraction: spend a weekly charge to turn the teacher away.");
-    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 530, Color{213, 128, 68, 255},
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 564, Color{213, 128, 68, 255},
                "Abilities have cooldowns, so use them like cartoon gadgets.");
-    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 568, Color{213, 128, 68, 255},
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 602, Color{213, 128, 68, 255},
                "Helpful students make Whisper safer than snitchy ones.");
 
     DrawSectionCard(studentCard, "Student Types", Color{241, 252, 243, 255}, Color{98, 161, 114, 255});
-    DrawBullet(static_cast<int>(studentCard.x + 18.0f), 380, Color{98, 210, 116, 255}, "Helpful: best progress, lowest Whisper suspicion.");
-    DrawBullet(static_cast<int>(studentCard.x + 18.0f), 418, Color{96, 166, 243, 255}, "Normal: balanced risk and reward.");
-    DrawBullet(static_cast<int>(studentCard.x + 18.0f), 456, Color{236, 121, 96, 255}, "Snitchy: weaker gains and much riskier to copy.");
+    DrawBullet(static_cast<int>(studentCard.x + 18.0f), 414, Color{98, 210, 116, 255}, "Helpful: best progress, lowest Whisper suspicion.");
+    DrawBullet(static_cast<int>(studentCard.x + 18.0f), 452, Color{96, 166, 243, 255}, "Normal: balanced risk and reward.");
+    DrawBullet(static_cast<int>(studentCard.x + 18.0f), 490, Color{236, 121, 96, 255}, "Snitchy: weaker gains and much riskier to copy.");
 
     DrawSectionCard(resultCard, "How To Win Or Lose", Color{255, 241, 241, 255}, Color{215, 95, 95, 255});
-    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 564, Color{89, 170, 108, 255}, "Win: clear all 10 weeks without getting caught.");
-    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 602, Color{215, 95, 95, 255}, "Lose: cheat in the teacher's view for 0.2 seconds.");
-    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 640, Color{215, 95, 95, 255}, "Lose instantly if the teacher spots you point-blank.");
+    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 598, Color{89, 170, 108, 255}, "Win: clear all 10 weeks without getting caught.");
+    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 636, Color{215, 95, 95, 255}, "Lose: cheat in the teacher's view for 0.2 seconds.");
+    DrawBullet(static_cast<int>(resultCard.x + 18.0f), 674, Color{215, 95, 95, 255}, "Lose instantly if the teacher spots you point-blank.");
 
     const Rectangle backRect = HelpBackButtonRect();
     DrawPosterButton(backRect, "BACK", "Return to the poster wall", Color{255, 237, 153, 255}, Color{164, 129, 37, 255},
@@ -1136,7 +1140,7 @@ void Game::UpdateSuspicion(float dt)
         suspicionRate_ = config::kSuspicionSeenPerSec * tuning_.suspicionGainMult;
         AddSuspicion(suspicionRate_ * dt);
     }
-    else if (!seesPlayerNow && !cheatingNow)
+    else if (!seesPlayerNow && !cheatingNow && player_.pos == week_.playerSpawn)
     {
         suspicionRate_ = -config::kSuspicionDecayPerSec;
         AddSuspicion(suspicionRate_ * dt);
@@ -1210,7 +1214,7 @@ void Game::UpdateInteractions(float dt)
         if (!student.consumed)
         {
             student.consumed = true;
-            AddProgress(config::PeekGain(student.trait) + PeekProgressBonus());
+            AddProgress(config::PeekGain(weekIndex_, student.trait) + PeekProgressBonus());
             AddSuspicion(4.0f * PeekSuspicionMultiplier());
             PlayPeekSfx();
         }

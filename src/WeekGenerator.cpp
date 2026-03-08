@@ -100,6 +100,7 @@ void PlaceFixedTiles(WeekData& week)
 {
     week.playerSpawn = GridPos{2, week.h - 3};
     week.submitPos = GridPos{week.w - 3, 2};
+    week.tiles[week.playerSpawn.y * week.w + week.playerSpawn.x] = TileType::SpawnDesk;
     week.tiles[week.submitPos.y * week.w + week.submitPos.x] = TileType::Submit;
 
     GridPos teacherDesk{week.w / 2, 1};
@@ -278,6 +279,7 @@ WeekData WeekGenerator::Generate(int weekIndex, uint32_t seed)
     }
     fallback.playerSpawn = GridPos{2, fallback.h - 3};
     fallback.submitPos = GridPos{fallback.w - 3, 2};
+    fallback.tiles[fallback.playerSpawn.y * fallback.w + fallback.playerSpawn.x] = TileType::SpawnDesk;
     fallback.tiles[fallback.submitPos.y * fallback.w + fallback.submitPos.x] = TileType::Submit;
     fallback.patrol = {GridPos{3, 3}, GridPos{12, 3}, GridPos{12, 12}, GridPos{3, 12}, GridPos{3, 3}};
 

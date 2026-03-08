@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <algorithm>
 
 #include "Types.h"
 
@@ -62,15 +63,15 @@ inline WeekTuning GetWeekTuning(int weekIndex)
 {
     if (weekIndex <= 1)
     {
-        return WeekTuning{0.35f, 70.0f, 5, 4.0f, 1.0f, 9};
+        return WeekTuning{0.35f, 70.0f, 5, 4.0f, 1.0f, 10};
     }
     if (weekIndex == 2)
     {
-        return WeekTuning{0.28f, 82.0f, 6, 3.2f, 1.12f, 11};
+        return WeekTuning{0.28f, 82.0f, 6, 3.2f, 1.12f, 12};
     }
     if (weekIndex == 3)
     {
-        return WeekTuning{0.22f, 95.0f, 7, 2.4f, 1.25f, 13};
+        return WeekTuning{0.22f, 95.0f, 7, 2.4f, 1.25f, 14};
     }
 
     const int extraWeeks = weekIndex - 3;
@@ -79,19 +80,23 @@ inline WeekTuning GetWeekTuning(int weekIndex)
     const int range = std::min(10, 7 + ((extraWeeks + 1) / 2));
     const float scanInterval = std::max(1.2f, 2.4f - 0.12f * static_cast<float>(extraWeeks));
     const float suspicionGain = 1.25f + 0.05f * static_cast<float>(extraWeeks);
-    const int studentCount = std::min(18, 13 + extraWeeks / 2);
+    const int studentCount = std::min(20, 14 + extraWeeks + ((extraWeeks + 1) / 2));
     return WeekTuning{moveSec, fov, range, scanInterval, suspicionGain, studentCount};
 }
 
-inline int PeekGain(StudentTrait trait)
+inline int PeekGain(int weekIndex, StudentTrait trait)
 {
+    int base = 10;
     switch (trait)
     {
-        case StudentTrait::Helpful: return 14;
-        case StudentTrait::Normal: return 12;
-        case StudentTrait::Snitchy: return 8;
-        default: return 10;
+        case StudentTrait::Helpful: base = 14; break;
+        case StudentTrait::Normal: base = 12; break;
+        case StudentTrait::Snitchy: base = 8; break;
+        default: base = 10; break;
     }
+
+    const float multiplier = std::max(0.65f, 1.0f - 0.04f * static_cast<float>(weekIndex - 1));
+    return std::max(4, static_cast<int>(base * multiplier + 0.5f));
 }
 
 inline int WhisperGain(StudentTrait trait)
