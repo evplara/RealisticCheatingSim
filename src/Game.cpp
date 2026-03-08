@@ -414,7 +414,7 @@ void Game::Draw() const
              Color{191, 212, 227, 255});
     y += 26;
     DrawText(TextFormat("Seed: %u", week_.seed), config::kHudX + 14, y, 16, Color{156, 178, 194, 255});
-    y += 28;
+    y += 36;
 
     renderui::DrawMeter(Rectangle{static_cast<float>(config::kHudX + 14), static_cast<float>(y),
                                   static_cast<float>(config::kHudWidth - 28), 20.0f},
