@@ -10,7 +10,7 @@ Top-down classroom stealth roguelike using Raylib.
 
 - `Enter`: start run / continue screens
 - `Esc`: quit from main menu, close ability mode
-- `W A S D`: move one tile
+- `W A S D`: move one tile, hold to keep moving
 - `Space` (hold): peek nearby student answers, or submit when on submit tile with full quiz progress
 - `Tab`: toggle ability mode pause
 - `1 2 3`: select unlocked ability in ability mode

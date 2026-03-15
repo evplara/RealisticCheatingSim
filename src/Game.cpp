@@ -482,7 +482,7 @@ void Game::Draw() const
                  renderui::TraitColor(s.trait, s.consumed));
     }
     y += 30;
-    DrawText("WASD move, Hold SPACE peek/submit", config::kHudX + 14, y, 16, Color{165, 189, 207, 255});
+    DrawText("WASD move/hold, Hold SPACE peek/submit", config::kHudX + 14, y, 16, Color{165, 189, 207, 255});
     y += 22;
     DrawText("Cheating in FOV for 0.2s = run over", config::kHudX + 14, y, 16, Color{220, 158, 130, 255});
     y += 22;
@@ -642,7 +642,7 @@ void Game::DrawHelpScreen() const
     const Rectangle resultCard2{rightX, 554.0f, leftWidth, 150.0f};
 
     DrawSectionCard(playCard, "How To Play", Color{255, 251, 239, 255}, Color{88, 150, 103, 255});
-    DrawBullet(static_cast<int>(playCard.x + 18.0f), 166, Color{88, 150, 103, 255}, "W A S D moves one tile at a time.");
+    DrawBullet(static_cast<int>(playCard.x + 18.0f), 166, Color{88, 150, 103, 255}, "W A S D moves; hold to keep stepping.");
     DrawBullet(static_cast<int>(playCard.x + 18.0f), 200, Color{88, 150, 103, 255}, "Hold SPACE near a student to peek answers.");
     DrawBullet(static_cast<int>(playCard.x + 18.0f), 234, Color{88, 150, 103, 255}, "Return to your HOME desk to cool off suspicion.");
     DrawBullet(static_cast<int>(playCard.x + 18.0f), 268, Color{88, 150, 103, 255}, "Stand on SUBMIT with 100 progress and hold SPACE.");
@@ -1270,19 +1270,19 @@ void Game::HandleMovementInput()
         return;
     }
 
-    if (IsKeyPressed(KEY_W))
+    if (IsKeyDown(KEY_W))
     {
         TryMovePlayer(0, -1);
     }
-    else if (IsKeyPressed(KEY_S))
+    else if (IsKeyDown(KEY_S))
     {
         TryMovePlayer(0, 1);
     }
-    else if (IsKeyPressed(KEY_A))
+    else if (IsKeyDown(KEY_A))
     {
         TryMovePlayer(-1, 0);
     }
-    else if (IsKeyPressed(KEY_D))
+    else if (IsKeyDown(KEY_D))
     {
         TryMovePlayer(1, 0);
     }
