@@ -84,8 +84,8 @@ const char* UpgradeDescription(UpgradeType upgrade)
     switch (upgrade)
     {
         case UpgradeType::PeekRange: return "+1 peek range";
-        case UpgradeType::PeekSuspicionDown: return "-20% suspicion on peek";
-        case UpgradeType::PeekProgressUp: return "+3 quiz progress per peek";
+        case UpgradeType::PeekSuspicionDown: return "-20% suspicion a peek";
+        case UpgradeType::PeekProgressUp: return "+3 progress a peek";
         case UpgradeType::UnlockWhisper: return "Unlock this ability";
         case UpgradeType::UnlockFakeCough: return "Unlock this ability";
         case UpgradeType::UnlockMirror: return "Unlock this ability";
@@ -427,19 +427,19 @@ void Game::Draw() const
                         suspicion_, 100.0f, "Suspicion", Color{236, 119, 101, 255});
     y += 54;
 
-    DrawText("Abilities (Tab to pause)", config::kHudX + 14, y, 18, RAYWHITE);
+    DrawText("Abilities (press 1/2/3)", config::kHudX + 14, y, 18, RAYWHITE);
     y += 26;
     renderui::DrawAbilityLine(config::kHudX + 14, y, 1, "Whisper", IsAbilityUnlocked(AbilityType::Whisper),
                               abilityCooldowns_[AbilityIndex(AbilityType::Whisper)],
-                              abilityMode_ && selectedAbility_ == AbilityType::Whisper);
+                              selectedAbility_ == AbilityType::Whisper);
     y += 28;
     renderui::DrawAbilityLine(config::kHudX + 14, y, 2, "Fake Cough", IsAbilityUnlocked(AbilityType::FakeCough),
                               abilityCooldowns_[AbilityIndex(AbilityType::FakeCough)],
-                              abilityMode_ && selectedAbility_ == AbilityType::FakeCough);
+                              selectedAbility_ == AbilityType::FakeCough);
     y += 28;
     renderui::DrawAbilityLine(config::kHudX + 14, y, 3, "Mirror", IsAbilityUnlocked(AbilityType::Mirror),
                               abilityCooldowns_[AbilityIndex(AbilityType::Mirror)],
-                              abilityMode_ && selectedAbility_ == AbilityType::Mirror);
+                              selectedAbility_ == AbilityType::Mirror);
     y += 34;
 
     if (CountUnlockedAbilities(unlockedAbilities_) == 0)
@@ -487,25 +487,6 @@ void Game::Draw() const
     DrawText("Cheating in FOV for 0.2s = run over", config::kHudX + 14, y, 16, Color{220, 158, 130, 255});
     y += 22;
     DrawText("Seen from 1 tile away = instant loss", config::kHudX + 14, y, 16, Color{244, 132, 132, 255});
-
-    if (abilityMode_ && state_ == GameState::InWeek)
-    {
-        const Rectangle modal{(config::kScreenWidth - 760.0f) * 0.5f - 110.0f, 170.0f, 760.0f, 190.0f};
-        DrawRectangle(0, 0, config::kScreenWidth, config::kScreenHeight, Color{8, 12, 18, 136});
-        DrawRectangleRounded(modal, 0.08f, 8, Color{23, 34, 47, 245});
-        DrawText("Ability Mode", static_cast<int>(modal.x + 28.0f), static_cast<int>(modal.y + 28.0f), 38,
-                 Color{180, 235, 199, 255});
-        if (CountUnlockedAbilities(unlockedAbilities_) == 0)
-        {
-            DrawText("No abilities unlocked yet. Draft one from a weekly reward.", static_cast<int>(modal.x + 28.0f),
-                     static_cast<int>(modal.y + 86.0f), 24, RAYWHITE);
-        }
-        else
-        {
-            DrawText("1/2/3 select, ENTER cast, 4 distraction, TAB cancel", static_cast<int>(modal.x + 28.0f),
-                     static_cast<int>(modal.y + 86.0f), 24, RAYWHITE);
-        }
-    }
 
     if (showDebug_)
     {
@@ -646,7 +627,7 @@ void Game::DrawHelpScreen() const
     DrawBullet(static_cast<int>(playCard.x + 18.0f), 200, Color{88, 150, 103, 255}, "Hold SPACE near a student to peek answers.");
     DrawBullet(static_cast<int>(playCard.x + 18.0f), 234, Color{88, 150, 103, 255}, "Return to your HOME desk to cool off suspicion.");
     DrawBullet(static_cast<int>(playCard.x + 18.0f), 268, Color{88, 150, 103, 255}, "Stand on SUBMIT with 100 progress and hold SPACE.");
-    DrawBullet(static_cast<int>(playCard.x + 18.0f), 302, Color{88, 150, 103, 255}, "TAB opens the ability menu and pauses the action.");
+    DrawBullet(static_cast<int>(playCard.x + 18.0f), 302, Color{88, 150, 103, 255}, "Press 1, 2, or 3 to fire unlocked abilities instantly.");
 
     DrawSectionCard(progressCard, "How You Progress", Color{250, 249, 255, 255}, Color{72, 129, 198, 255});
     DrawBullet(static_cast<int>(progressCard.x + 18.0f), 166, Color{72, 129, 198, 255}, "Each run lasts 10 progressively harder weeks.");
@@ -657,16 +638,16 @@ void Game::DrawHelpScreen() const
                "The pool mixes 3 stat boosts with 3 ability unlocks.");
 
     DrawSectionCard(abilityCard, "Abilities And Tricks", Color{255, 247, 233, 255}, Color{213, 128, 68, 255});
-    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 412, Color{213, 128, 68, 255}, "Whisper: grab a nearby answer instantly.");
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 412, Color{213, 128, 68, 255}, "Whisper: grab a nearby answer instantly while not raising suspicion.");
     DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 450, Color{213, 128, 68, 255}, "Fake Cough: lure the teacher to your tile if unseen.");
     DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 488, Color{213, 128, 68, 255},
-               "Mirror: for 5 seconds, peek through one blocker nearby.");
+               "Mirror: for 5 seconds, peek one extra tile away.");
     DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 526, Color{213, 128, 68, 255},
                "Distraction: spend a charge to turn the teacher away.");
     DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 564, Color{213, 128, 68, 255},
                "Abilities have cooldowns, so use them wisely.");
     DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 602, Color{213, 128, 68, 255},
-               "Helpful students make Whisper safer than snitchy ones.");
+               "Helpful students give Whisper more progress than snitchy ones.");
 
     DrawSectionCard(studentCard, "Student Types", Color{241, 252, 243, 255}, Color{98, 161, 114, 255});
     DrawBullet(static_cast<int>(studentCard.x + 18.0f), 414, Color{98, 210, 116, 255}, "Helpful: best progress, lowest suspicion.");
@@ -764,7 +745,6 @@ void Game::StartWeek(int weekIndex)
 
     quizProgress_ = 0.0f;
     teacherSeesPlayer_ = false;
-    abilityMode_ = false;
     selectedAbility_ = AbilityType::Whisper;
     if (!IsAbilityUnlocked(selectedAbility_))
     {
@@ -1006,21 +986,7 @@ void Game::UpdateEndScreenInput()
 
 void Game::UpdateInWeek(float dt)
 {
-    if (IsKeyPressed(KEY_TAB))
-    {
-        abilityMode_ = !abilityMode_;
-        peeking_ = false;
-        return;
-    }
-
-    if (abilityMode_)
-    {
-        HandleAbilityModeInput();
-        peeking_ = false;
-        cheatingActionTimer_ = std::max(0.0f, cheatingActionTimer_ - dt);
-        return;
-    }
-
+    HandleAbilityHotkeys();
     HandleMovementInput();
     UpdateMovement(dt);
     UpdateTeacher(dt);
@@ -1288,39 +1254,24 @@ void Game::HandleMovementInput()
     }
 }
 
-void Game::HandleAbilityModeInput()
+void Game::HandleAbilityHotkeys()
 {
-    if (IsKeyPressed(KEY_ESCAPE))
+    if (IsKeyPressed(KEY_ONE))
     {
-        abilityMode_ = false;
-        return;
+        CastAbility(AbilityType::Whisper);
+    }
+    else if (IsKeyPressed(KEY_TWO))
+    {
+        CastAbility(AbilityType::FakeCough);
+    }
+    else if (IsKeyPressed(KEY_THREE))
+    {
+        CastAbility(AbilityType::Mirror);
     }
 
-    if (IsKeyPressed(KEY_ONE) && IsAbilityUnlocked(AbilityType::Whisper))
+    if (IsKeyPressed(KEY_FOUR) && TriggerDistraction())
     {
-        selectedAbility_ = AbilityType::Whisper;
-    }
-    else if (IsKeyPressed(KEY_TWO) && IsAbilityUnlocked(AbilityType::FakeCough))
-    {
-        selectedAbility_ = AbilityType::FakeCough;
-    }
-    else if (IsKeyPressed(KEY_THREE) && IsAbilityUnlocked(AbilityType::Mirror))
-    {
-        selectedAbility_ = AbilityType::Mirror;
-    }
-
-    if (IsKeyPressed(KEY_ENTER))
-    {
-        CastSelectedAbility();
-    }
-
-    if (IsKeyPressed(KEY_FOUR))
-    {
-        if (TriggerDistraction())
-        {
-            abilityMode_ = false;
-            PlayAbilitySfx();
-        }
+        PlayAbilitySfx();
     }
 }
 
@@ -1343,21 +1294,23 @@ void Game::TryMovePlayer(int dx, int dy)
     player_.pos = next;
 }
 
-void Game::CastSelectedAbility()
+void Game::CastAbility(AbilityType ability)
 {
-    if (!IsAbilityUnlocked(selectedAbility_))
+    selectedAbility_ = ability;
+
+    if (!IsAbilityUnlocked(ability))
     {
         return;
     }
 
-    const int idx = AbilityIndex(selectedAbility_);
+    const int idx = AbilityIndex(ability);
     if (abilityCooldowns_[idx] > 0.0f)
     {
         return;
     }
 
     bool success = false;
-    switch (selectedAbility_)
+    switch (ability)
     {
         case AbilityType::Whisper:
             success = TriggerWhisper();
@@ -1380,9 +1333,8 @@ void Game::CastSelectedAbility()
         return;
     }
 
-    abilityCooldowns_[idx] = config::AbilityCooldown(selectedAbility_);
+    abilityCooldowns_[idx] = config::AbilityCooldown(ability);
     cheatingActionTimer_ = std::max(cheatingActionTimer_, 0.25f);
-    abilityMode_ = false;
     PlayAbilitySfx();
 }
 
@@ -1402,7 +1354,6 @@ bool Game::TriggerWhisper()
 
     student.consumed = true;
     AddProgress(config::WhisperGain(student.trait));
-    AddSuspicion(config::WhisperSuspicion(student.trait));
     return true;
 }
 

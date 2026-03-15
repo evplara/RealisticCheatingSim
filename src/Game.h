@@ -40,9 +40,9 @@ private:
     void UpdateMirror(float dt);
 
     void HandleMovementInput();
-    void HandleAbilityModeInput();
+    void HandleAbilityHotkeys();
     void TryMovePlayer(int dx, int dy);
-    void CastSelectedAbility();
+    void CastAbility(AbilityType ability);
     bool TriggerWhisper();
     bool TriggerFakeCough();
     bool TriggerMirror();
@@ -118,7 +118,6 @@ private:
     int distractionCharges_ = 0;
     std::array<bool, 3> unlockedAbilities_{{false, false, false}};
 
-    bool abilityMode_ = false;
     AbilityType selectedAbility_ = AbilityType::Whisper;
     std::array<float, 3> abilityCooldowns_{{0.0f, 0.0f, 0.0f}};
 

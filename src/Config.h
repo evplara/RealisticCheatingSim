@@ -110,17 +110,6 @@ inline int WhisperGain(StudentTrait trait)
     }
 }
 
-inline float WhisperSuspicion(StudentTrait trait)
-{
-    switch (trait)
-    {
-        case StudentTrait::Helpful: return 8.0f;
-        case StudentTrait::Normal: return 12.0f;
-        case StudentTrait::Snitchy: return 18.0f;
-        default: return 12.0f;
-    }
-}
-
 inline std::array<float, 3> TraitWeights(int weekIndex)
 {
     switch (weekIndex)

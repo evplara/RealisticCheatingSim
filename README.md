@@ -9,13 +9,11 @@ Top-down classroom stealth roguelike using Raylib.
 ## Controls
 
 - `Enter`: start run / continue screens
-- `Esc`: quit from main menu, close ability mode
+- `Esc`: quit from main menu
 - `W A S D`: move one tile, hold to keep moving
 - `Space` (hold): peek nearby student answers, or submit when on submit tile with full quiz progress
-- `Tab`: toggle ability mode pause
-- `1 2 3`: select unlocked ability in ability mode
-- `4`: use `Distraction` in ability mode if you have weekly charges
-- `Enter` (in ability mode): cast selected ability
+- `1 2 3`: cast unlocked abilities instantly during gameplay
+- `4`: use `Distraction` if you have weekly charges
 - `F3`: debug overlay
 
 ## Gameplay Loop
@@ -34,9 +32,13 @@ Top-down classroom stealth roguelike using Raylib.
 - `Quiet Hands`: -20% suspicion gained on peeks
 - `Quick Study`: +3 quiz progress per peek
 
-## Tricks
 
-- `Distraction`: starts with 1 weekly charge to force the teacher to face away
+## Ability Guide
+
+- `Whisper`: unlockable reward ability on `1`. Instantly copies an answer from the nearest adjacent student, consuming that student for the rest of the week. Gives more quiz progress from `Helpful` students and much less from `Snitchy` students, but also adds suspicion. Cooldown: `12s`.
+- `Fake Cough`: unlockable reward ability on `2`. Only works if the teacher is not already looking at you. It pulls the teacher into an `Investigate` state at your current tile for `2.5s`, buying room elsewhere but adding a big suspicion spike. Cooldown: `18s`.
+- `Mirror`: unlockable reward ability on `3`. Activates for `5s` and lets your normal peek reach students within `2` tiles even through one blocker. Useful for reading around desks or walls without repositioning. Cooldown: `20s`.
+- `Distraction`: used with `4`. You start each week with `1` charge, and the matching reward adds `+1` more weekly charge. It instantly turns the teacher to face away from you, spends one charge, and adds a small amount of suspicion.
 
 ## Attributes
 
