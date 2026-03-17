@@ -21,6 +21,7 @@ int main()
         EndDrawing();
     }
 
+    game.Shutdown();
     CloseWindow();
     return 0;
 }

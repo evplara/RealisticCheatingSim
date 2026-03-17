@@ -12,11 +12,15 @@ class Game
 {
 public:
     void Init();
+    void Shutdown();
     void Update(float dt);
     void Draw() const;
     bool ShouldExit() const;
 
 private:
+    struct RuntimeSound;
+    struct RuntimeTexture;
+
     void StartNewRun();
     void StartWeek(int weekIndex);
     void AdvanceWeekOrEndRun();
@@ -73,6 +77,10 @@ private:
     void PlayPeekSfx();
     void PlayAbilitySfx();
     void PlayCaughtSfx();
+    void DrawRewardImage(const Rectangle& rect, UpgradeType upgrade) const;
+    void LoadRewardTexture(RuntimeTexture& texture, const char* path);
+    void UnloadRewardTexture(RuntimeTexture& texture);
+    const RuntimeTexture* RewardTextureForUpgrade(UpgradeType upgrade) const;
     void DrawMainMenu() const;
     void DrawHelpScreen() const;
     void DrawRunFailScreen() const;
@@ -81,6 +89,12 @@ private:
     struct RuntimeSound
     {
         Sound sound{};
+        bool loaded = false;
+    };
+
+    struct RuntimeTexture
+    {
+        Texture2D texture{};
         bool loaded = false;
     };
 
@@ -147,4 +161,8 @@ private:
     RuntimeSound sfxPeek_{};
     RuntimeSound sfxAbility_{};
     RuntimeSound sfxCaught_{};
+    RuntimeTexture rewardWhisperImage_{};
+    RuntimeTexture rewardFakeCoughImage_{};
+    RuntimeTexture rewardGreenVialImage_{};
+    RuntimeTexture rewardQuickStudyImage_{};
 };

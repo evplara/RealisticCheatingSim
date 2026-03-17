@@ -35,9 +35,9 @@ Top-down classroom stealth roguelike using Raylib.
 
 ## Ability Guide
 
-- `Whisper`: unlockable reward ability on `1`. Instantly copies an answer from the nearest adjacent student, consuming that student for the rest of the week. Gives more quiz progress from `Helpful` students and much less from `Snitchy` students, but also adds suspicion. Cooldown: `12s`.
+- `Pill of Fast Hands`: unlockable reward ability on `1`. Instantly copies an answer from the nearest adjacent student, consuming that student for the rest of the week. Gives more quiz progress from `Helpful` students and much less from `Snitchy` students, but also adds suspicion. Cooldown: `12s`.
 - `Fake Cough`: unlockable reward ability on `2`. Only works if the teacher is not already looking at you. It pulls the teacher into an `Investigate` state at your current tile for `2.5s`, buying room elsewhere but adding a big suspicion spike. Cooldown: `18s`.
-- `Mirror`: unlockable reward ability on `3`. Activates for `5s` and lets your normal peek reach students within `2` tiles even through one blocker. Useful for reading around desks or walls without repositioning. Cooldown: `20s`.
+- `Vial of Long Vision`: unlockable reward ability on `3`. Activates for `5s` and lets your normal peek reach students within `2` tiles even through one blocker. Useful for reading around desks or walls without repositioning. Cooldown: `20s`.
 - `Distraction`: used with `4`. You start each week with `1` charge, and the matching reward adds `+1` more weekly charge. It instantly turns the teacher to face away from you, spends one charge, and adds a small amount of suspicion.
 
 ## Attributes

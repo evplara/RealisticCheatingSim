@@ -64,18 +64,56 @@ int TraitHintIndex(const WeekData& week, GridPos playerPos)
     return best;
 }
 
+std::string AbilityDisplayName(AbilityType ability)
+{
+    switch (ability)
+    {
+        case AbilityType::Whisper: return "Pill of Fast Hands";
+        case AbilityType::FakeCough: return "Fake Cough";
+        case AbilityType::Mirror: return "Vial of Long Vision";
+        default: return "Ability";
+    }
+}
+
+std::string AbilityStatusName(AbilityType ability)
+{
+    switch (ability)
+    {
+        case AbilityType::Mirror: return "Long Vision";
+        default: return AbilityDisplayName(ability);
+    }
+}
+
 const char* UpgradeName(UpgradeType upgrade)
 {
     switch (upgrade)
     {
         case UpgradeType::PeekRange: return "Long Reach";
         case UpgradeType::PeekSuspicionDown: return "Quiet Hands";
-        case UpgradeType::PeekProgressUp: return "Quick Study";
-        case UpgradeType::UnlockWhisper: return "Whisper";
+        case UpgradeType::PeekProgressUp: return "Flask of Cheating Prowess";
+        case UpgradeType::UnlockWhisper: return "Pill of Fast Hands";
         case UpgradeType::UnlockFakeCough: return "Fake Cough";
-        case UpgradeType::UnlockMirror: return "Mirror";
+        case UpgradeType::UnlockMirror: return "Vial of Long Vision";
         case UpgradeType::Distraction: return "Distraction";
         default: return "Upgrade";
+    }
+}
+
+std::string UpgradeCardTitle(UpgradeType upgrade)
+{
+    switch (upgrade)
+    {
+        case UpgradeType::PeekProgressUp: return "Flask of\nCheating Prowess";
+        default: return UpgradeName(upgrade);
+    }
+}
+
+int UpgradeCardTitleFontSize(UpgradeType upgrade)
+{
+    switch (upgrade)
+    {
+        case UpgradeType::PeekProgressUp: return 20;
+        default: return 22;
     }
 }
 
@@ -106,6 +144,58 @@ Color UpgradeColor(UpgradeType upgrade)
         case UpgradeType::UnlockMirror: return Color{180, 213, 255, 255};
         case UpgradeType::Distraction: return Color{248, 141, 109, 255};
         default: return RAYWHITE;
+    }
+}
+
+bool HasRewardImage(UpgradeType upgrade)
+{
+    return upgrade == UpgradeType::PeekProgressUp || upgrade == UpgradeType::UnlockWhisper || upgrade == UpgradeType::UnlockFakeCough ||
+           upgrade == UpgradeType::UnlockMirror;
+}
+
+Rectangle FitContent(Rectangle bounds, float sourceWidth, float sourceHeight)
+{
+    if (sourceWidth <= 0.0f || sourceHeight <= 0.0f)
+    {
+        return bounds;
+    }
+
+    const float scale = std::min(bounds.width / sourceWidth, bounds.height / sourceHeight);
+    const float width = sourceWidth * scale;
+    const float height = sourceHeight * scale;
+    return Rectangle{bounds.x + (bounds.width - width) * 0.5f, bounds.y + (bounds.height - height) * 0.5f, width, height};
+}
+
+void DrawCenteredTextBlock(const std::string& text, Rectangle bounds, int fontSize, int lineGap, Color color)
+{
+    int lineCount = 1;
+    for (char c : text)
+    {
+        if (c == '\n')
+        {
+            lineCount++;
+        }
+    }
+
+    const int lineHeight = fontSize + lineGap;
+    const int totalHeight = lineCount * fontSize + (lineCount - 1) * lineGap;
+    int currentY = static_cast<int>(bounds.y + (bounds.height - static_cast<float>(totalHeight)) * 0.5f);
+    size_t start = 0;
+
+    while (start <= text.size())
+    {
+        const size_t end = text.find('\n', start);
+        const std::string line = text.substr(start, (end == std::string::npos) ? std::string::npos : end - start);
+        const int width = MeasureText(line.c_str(), fontSize);
+        const int drawX = static_cast<int>(bounds.x + (bounds.width - static_cast<float>(width)) * 0.5f);
+        DrawText(line.c_str(), drawX, currentY, fontSize, color);
+        currentY += lineHeight;
+
+        if (end == std::string::npos)
+        {
+            break;
+        }
+        start = end + 1;
     }
 }
 
@@ -285,7 +375,41 @@ void Game::Init()
         }
     }
 
+    LoadRewardTexture(rewardWhisperImage_, "resources/images/Whisper.png");
+    LoadRewardTexture(rewardFakeCoughImage_, "resources/images/FakeCough.png");
+    LoadRewardTexture(rewardGreenVialImage_, "resources/images/GreenVial.png");
+    LoadRewardTexture(rewardQuickStudyImage_, "resources/images/QuickStudy.png");
+
     state_ = GameState::MainMenu;
+}
+
+void Game::Shutdown()
+{
+    UnloadRewardTexture(rewardWhisperImage_);
+    UnloadRewardTexture(rewardFakeCoughImage_);
+    UnloadRewardTexture(rewardGreenVialImage_);
+    UnloadRewardTexture(rewardQuickStudyImage_);
+
+    if (sfxPeek_.loaded)
+    {
+        UnloadSound(sfxPeek_.sound);
+        sfxPeek_.loaded = false;
+    }
+    if (sfxAbility_.loaded)
+    {
+        UnloadSound(sfxAbility_.sound);
+        sfxAbility_.loaded = false;
+    }
+    if (sfxCaught_.loaded)
+    {
+        UnloadSound(sfxCaught_.sound);
+        sfxCaught_.loaded = false;
+    }
+    if (audioReady_)
+    {
+        CloseAudioDevice();
+        audioReady_ = false;
+    }
 }
 
 void Game::Update(float dt)
@@ -429,15 +553,18 @@ void Game::Draw() const
 
     DrawText("Abilities (press 1/2/3)", config::kHudX + 14, y, 18, RAYWHITE);
     y += 26;
-    renderui::DrawAbilityLine(config::kHudX + 14, y, 1, "Whisper", IsAbilityUnlocked(AbilityType::Whisper),
+    const std::string whisperName = AbilityDisplayName(AbilityType::Whisper);
+    renderui::DrawAbilityLine(config::kHudX + 14, y, 1, whisperName.c_str(), IsAbilityUnlocked(AbilityType::Whisper),
                               abilityCooldowns_[AbilityIndex(AbilityType::Whisper)],
                               selectedAbility_ == AbilityType::Whisper);
     y += 28;
-    renderui::DrawAbilityLine(config::kHudX + 14, y, 2, "Fake Cough", IsAbilityUnlocked(AbilityType::FakeCough),
+    const std::string fakeCoughName = AbilityDisplayName(AbilityType::FakeCough);
+    renderui::DrawAbilityLine(config::kHudX + 14, y, 2, fakeCoughName.c_str(), IsAbilityUnlocked(AbilityType::FakeCough),
                               abilityCooldowns_[AbilityIndex(AbilityType::FakeCough)],
                               selectedAbility_ == AbilityType::FakeCough);
     y += 28;
-    renderui::DrawAbilityLine(config::kHudX + 14, y, 3, "Mirror", IsAbilityUnlocked(AbilityType::Mirror),
+    const std::string mirrorName = AbilityDisplayName(AbilityType::Mirror);
+    renderui::DrawAbilityLine(config::kHudX + 14, y, 3, mirrorName.c_str(), IsAbilityUnlocked(AbilityType::Mirror),
                               abilityCooldowns_[AbilityIndex(AbilityType::Mirror)],
                               selectedAbility_ == AbilityType::Mirror);
     y += 34;
@@ -456,12 +583,14 @@ void Game::Draw() const
 
     if (player_.mirrorActive)
     {
-        DrawText(TextFormat("Mirror Active: %.1fs", player_.mirrorTimer), config::kHudX + 14, y, 18,
+        const std::string mirrorStatus = AbilityStatusName(AbilityType::Mirror);
+        DrawText(TextFormat("%s Active: %.1fs", mirrorStatus.c_str(), player_.mirrorTimer), config::kHudX + 14, y, 18,
                  Color{180, 225, 253, 255});
     }
     else
     {
-        DrawText("Mirror Active: No", config::kHudX + 14, y, 18, Color{150, 170, 186, 255});
+        const std::string mirrorStatus = AbilityStatusName(AbilityType::Mirror);
+        DrawText(TextFormat("%s Active: No", mirrorStatus.c_str()), config::kHudX + 14, y, 18, Color{150, 170, 186, 255});
     }
     y += 30;
 
@@ -522,15 +651,11 @@ void Game::Draw() const
         const float cardsStartX = (config::kScreenWidth - (cardWidth * 3.0f + gap * 2.0f)) * 0.5f;
         const int titleY = 118;
         const int subtitleY = 168;
-        const int unlockY = 206;
         const std::string weekClearTitle = TextFormat("Week %d Cleared", weekIndex_);
         DrawRectangle(0, 0, config::kScreenWidth, config::kScreenHeight, Color{8, 12, 18, 170});
         DrawText(weekClearTitle.c_str(), config::kScreenWidth / 2 - MeasureText(weekClearTitle.c_str(), 44) / 2, titleY, 44, RAYWHITE);
-        DrawText("Pick 1 of 3 random rewards",
-                 config::kScreenWidth / 2 - MeasureText("Pick 1 of 3 random rewards", 28) / 2, subtitleY, 28, Color{179, 202, 219, 255});
-        DrawText("Stat boosts and ability unlocks can both appear here.",
-                 config::kScreenWidth / 2 - MeasureText("Stat boosts and ability unlocks can both appear here.", 24) / 2, unlockY, 24,
-                 Color{180, 235, 199, 255});
+        DrawText("Pick 1 of 3 rewards",
+                 config::kScreenWidth / 2 - MeasureText("Pick 1 of 3 rewards", 28) / 2, subtitleY, 28, Color{179, 202, 219, 255});
 
         for (int i = 0; i < 3; ++i)
         {
@@ -538,11 +663,23 @@ void Game::Draw() const
             const Rectangle card{x, 286.0f, cardWidth, cardHeight};
             const UpgradeType upgrade = offeredUpgrades_[i];
             const Color accent = UpgradeColor(upgrade);
+            const bool showRewardImage = HasRewardImage(upgrade);
+            const Rectangle previewRect{x + 18.0f, card.y + 44.0f, cardWidth - 36.0f, 104.0f};
+            const Rectangle titleRect = showRewardImage
+                                            ? Rectangle{x + 14.0f, card.y + 158.0f, cardWidth - 28.0f, 60.0f}
+                                            : Rectangle{x + 14.0f, card.y + 78.0f, cardWidth - 28.0f, 60.0f};
+            const Rectangle descRect = showRewardImage
+                                           ? Rectangle{x + 18.0f, card.y + 214.0f, cardWidth - 36.0f, 22.0f}
+                                           : Rectangle{x + 18.0f, card.y + 156.0f, cardWidth - 36.0f, 22.0f};
             DrawRectangleRounded(card, 0.08f, 8, Color{24, 33, 44, 245});
             DrawRectangleRoundedLinesEx(card, 0.08f, 8, 3.0f, accent);
             DrawText(TextFormat("%d", i + 1), static_cast<int>(x + 18.0f), 310, 30, accent);
-            DrawText(UpgradeName(upgrade), static_cast<int>(x + 18.0f), 360, 30, RAYWHITE);
-            DrawText(UpgradeDescription(upgrade), static_cast<int>(x + 18.0f), 414, 22, accent);
+            if (showRewardImage)
+            {
+                DrawRewardImage(previewRect, upgrade);
+            }
+            DrawCenteredTextBlock(UpgradeCardTitle(upgrade), titleRect, UpgradeCardTitleFontSize(upgrade), 4, RAYWHITE);
+            DrawCenteredTextBlock(UpgradeDescription(upgrade), descRect, 20, 2, accent);
         }
 
         DrawText("Press 1, 2, or 3 to continue to the next week",
@@ -563,6 +700,56 @@ void Game::Draw() const
 bool Game::ShouldExit() const
 {
     return shouldExit_;
+}
+
+void Game::LoadRewardTexture(RuntimeTexture& texture, const char* path)
+{
+    if (!FileExists(path))
+    {
+        return;
+    }
+
+    texture.texture = LoadTexture(path);
+    texture.loaded = texture.texture.id > 0;
+}
+
+void Game::UnloadRewardTexture(RuntimeTexture& texture)
+{
+    if (!texture.loaded)
+    {
+        return;
+    }
+
+    UnloadTexture(texture.texture);
+    texture.texture = Texture2D{};
+    texture.loaded = false;
+}
+
+const Game::RuntimeTexture* Game::RewardTextureForUpgrade(UpgradeType upgrade) const
+{
+    switch (upgrade)
+    {
+        case UpgradeType::PeekProgressUp: return &rewardQuickStudyImage_;
+        case UpgradeType::UnlockWhisper: return &rewardWhisperImage_;
+        case UpgradeType::UnlockFakeCough: return &rewardFakeCoughImage_;
+        case UpgradeType::UnlockMirror: return &rewardGreenVialImage_;
+        default: return nullptr;
+    }
+}
+
+void Game::DrawRewardImage(const Rectangle& rect, UpgradeType upgrade) const
+{
+    const RuntimeTexture* rewardTexture = RewardTextureForUpgrade(upgrade);
+    if (rewardTexture != nullptr && rewardTexture->loaded)
+    {
+        const Rectangle content = FitContent(rect,
+                                             static_cast<float>(rewardTexture->texture.width),
+                                             static_cast<float>(rewardTexture->texture.height));
+        DrawTexturePro(rewardTexture->texture,
+                       Rectangle{0.0f, 0.0f, static_cast<float>(rewardTexture->texture.width),
+                                 static_cast<float>(rewardTexture->texture.height)},
+                       content, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
+    }
 }
 
 void Game::DrawMainMenu() const
@@ -638,16 +825,17 @@ void Game::DrawHelpScreen() const
                "The pool mixes 3 stat boosts with 3 ability unlocks.");
 
     DrawSectionCard(abilityCard, "Abilities And Tricks", Color{255, 247, 233, 255}, Color{213, 128, 68, 255});
-    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 412, Color{213, 128, 68, 255}, "Whisper: grab a nearby answer instantly while not raising suspicion.");
-    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 450, Color{213, 128, 68, 255}, "Fake Cough: lure the teacher to your tile if unseen.");
-    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 488, Color{213, 128, 68, 255},
-               "Mirror: for 5 seconds, peek one extra tile away.");
-    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 526, Color{213, 128, 68, 255},
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 412, Color{213, 128, 68, 255},
+               "Pill of Fast Hands: grab a nearby\nanswer instantly while not raising suspicion.");
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 460, Color{213, 128, 68, 255}, "Fake Cough: lure the teacher to your tile if unseen.");
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 498, Color{213, 128, 68, 255},
+               "Vial of Long Vision: for 5 seconds,\npeek one extra tile away & through desks.");
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 546, Color{213, 128, 68, 255},
                "Distraction: spend a charge to turn the teacher away.");
-    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 564, Color{213, 128, 68, 255},
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 584, Color{213, 128, 68, 255},
                "Abilities have cooldowns, so use them wisely.");
-    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 602, Color{213, 128, 68, 255},
-               "Helpful students give Whisper more progress than snitchy ones.");
+    DrawBullet(static_cast<int>(abilityCard.x + 18.0f), 622, Color{213, 128, 68, 255},
+               "Helpful students give Pill of Fast\nHands more progress than snitchy ones.");
 
     DrawSectionCard(studentCard, "Student Types", Color{241, 252, 243, 255}, Color{98, 161, 114, 255});
     DrawBullet(static_cast<int>(studentCard.x + 18.0f), 414, Color{98, 210, 116, 255}, "Helpful: best progress, lowest suspicion.");

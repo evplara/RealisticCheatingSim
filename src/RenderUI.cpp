@@ -28,29 +28,37 @@ void DrawMeter(const Rectangle& rect, float value, float maxValue, const char* l
 
 void DrawAbilityLine(int x, int y, int slot, const char* name, bool unlocked, float cooldownRemaining, bool selected)
 {
+    constexpr int kLineWidth = 320;
+    constexpr int kStatusX = 246;
     Color textColor = unlocked ? RAYWHITE : Color{150, 150, 150, 255};
     if (selected && unlocked)
     {
-        DrawRectangleRounded(Rectangle{static_cast<float>(x - 6), static_cast<float>(y - 4), 220, 28}, 0.2f, 4,
+        DrawRectangleRounded(Rectangle{static_cast<float>(x - 6), static_cast<float>(y - 4), static_cast<float>(kLineWidth), 28}, 0.2f, 4,
                              Color{51, 87, 121, 200});
     }
 
+    int nameFontSize = 18;
+    while (nameFontSize > 12 && MeasureText(name, nameFontSize) > (kStatusX - 32))
+    {
+        nameFontSize--;
+    }
+
     DrawText(TextFormat("%d", slot), x, y, 18, Color{181, 198, 214, 255});
-    DrawText(name, x + 24, y, 18, textColor);
+    DrawText(name, x + 24, y + ((18 - nameFontSize) / 2), nameFontSize, textColor);
 
     if (!unlocked)
     {
-        DrawText("LOCKED", x + 150, y, 16, Color{170, 120, 120, 255});
+        DrawText("LOCKED", x + kStatusX, y, 16, Color{170, 120, 120, 255});
         return;
     }
 
     if (cooldownRemaining > 0.0f)
     {
-        DrawText(TextFormat("%.1fs", cooldownRemaining), x + 150, y, 16, Color{255, 194, 118, 255});
+        DrawText(TextFormat("%.1fs", cooldownRemaining), x + kStatusX, y, 16, Color{255, 194, 118, 255});
     }
     else
     {
-        DrawText("READY", x + 150, y, 16, Color{126, 235, 165, 255});
+        DrawText("READY", x + kStatusX, y, 16, Color{126, 235, 165, 255});
     }
 }
 
