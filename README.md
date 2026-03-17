@@ -1,5 +1,9 @@
 # Realistic Cheating Simulator
 
+## How to Download 
+Go to the Releases Page, download game.zip, extract it, and run game.exe.
+
+Or you could download the entire Repo code, extract, and run game.exe.
 ### OLD 7DRL LINK
 Play on itch.io !!!
 https://koolaid77.itch.io/realistic-cheating-sim
