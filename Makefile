@@ -69,6 +69,7 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
     # ifeq ($(UNAME),Msys) -> Windows
     ifeq ($(OS),Windows_NT)
         PLATFORM_OS=WINDOWS
+        EXT = .exe
         export PATH := $(COMPILER_PATH):$(PATH)
     else
         UNAMEOS=$(shell uname)

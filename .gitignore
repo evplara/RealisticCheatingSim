@@ -1,4 +1,5 @@
 *.exe
+!game.exe
 *.dsym
 main
 obj/
