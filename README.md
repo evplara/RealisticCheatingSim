@@ -46,6 +46,9 @@ Caught sound effect, "caught.wav" from https://opengameart.org/content/wrong-cho
 
 Licensed under CC-BY 4.0
 
-Abiltiy Sound Effect, "ability.wav" from https://opengameart.org/content/7-assorted-sound-effects-menu-level-up sound effect 3 "Item Pickup" by Joth
+Ability Sound Effect, "ability.wav" from https://opengameart.org/content/7-assorted-sound-effects-menu-level-up sound effect 3 "Item Pickup" by Joth
 
 Peek sound effect, "peek.wav" from https://opengameart.org/node/132692 by NachtmahrTV 
+
+Ability and Stat Upgrade Icons and names from Consumable Generator Midterm Tool: https://github.com/hab927/Consumables-Generator/tree/master
+
