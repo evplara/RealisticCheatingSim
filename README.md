@@ -1,5 +1,7 @@
 # Realistic Cheating Simulator
 
+## A Top-down classroom stealth roguelike game!
+
 ## How to Download 
 Go to the Releases Page, download game.zip, extract it, and run game.exe.
 
@@ -8,9 +10,8 @@ Or you could download the entire Repo code, extract, and run game.exe.
 Play on itch.io !!!
 https://koolaid77.itch.io/realistic-cheating-sim
 
-<img width="1279" height="959" alt="Screenshot 2026-03-07 221713" src="https://github.com/user-attachments/assets/cb8169b7-851b-4dbc-818a-3604f822c6b9" />
+https://github.com/user-attachments/assets/ba024140-1862-47a7-8730-7c95009d0676
 
-Top-down classroom stealth roguelike using Raylib.
 
 ## Controls
 
